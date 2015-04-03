@@ -37,12 +37,27 @@
     <jclouds.osgi.import>org.jclouds*;version="${project.version}",*</jclouds.osgi.import>
   </properties>
 
+  <repositories>
+    <!-- Temporary, until exact interface to vagrant decided.
+         Will build the vagrant-java-bindings dependency from github directly. -->
+    <repository>
+	  <id>jitpack.io</id>
+      <url>https://jitpack.io</url>
+    </repository>
+  </repositories>
+
   <dependencies>
+  	<!-- resolved by jitpack.io -->
     <dependency>
+      <groupId>com.github.neykov</groupId>
+      <artifactId>vagrant-java-bindings</artifactId>
+      <version>4319a2dfb3</version>
+    </dependency>
+    <!-- dependency>
       <groupId>name.neykov</groupId>
       <artifactId>vagrant-java-bindings</artifactId>
       <version>0.0.1-SNAPSHOT</version>
-    </dependency>
+    </dependency -->
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-compute</artifactId>
