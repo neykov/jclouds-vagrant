@@ -64,4 +64,34 @@
       <version>${jclouds.version}</version>
     </dependency>
   </dependencies>
+  <build>
+    <!--
+        override https://github.com/jclouds/jclouds/commit/e184091951b0029d4dd1d5659d5d326966c06429
+        messes with eclipse, can't import project
+     -->
+    <resources combine.self="override">
+      <resource>
+        <directory>src/main/clojure</directory>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <!-- fix compile with Java 6 - plexus-compiler-javac-errorprone requires JRE 7 -->
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+            <compilerId>javac</compilerId>
+            <compilerArgs>
+              <compilerArg>-Xlint</compilerArg>
+              <compilerArg>-Xlint:-deprecation</compilerArg>
+              <compilerArg>-Xlint:-rawtypes</compilerArg>
+              <compilerArg>-Xlint:-serial</compilerArg>
+              <compilerArg>-Xlint:-unchecked</compilerArg>
+            </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
+   </build>
 </project>
