@@ -25,25 +25,25 @@ import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
 import org.jclouds.vagrant.compute.VagrantComputeServiceAdapter;
+import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
 
 import vagrant.api.domain.Box;
-import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 
 import com.google.common.base.Function;
 import com.google.inject.TypeLiteral;
 
-public class VagrantComputeServiceContextModule extends ComputeServiceAdapterContextModule<Machine, Hardware, Box, Location> {
+public class VagrantComputeServiceContextModule extends ComputeServiceAdapterContextModule<VagrantNode, Hardware, Box, Location> {
 
    @Override
    protected void configure() {
       super.configure();
-      bind(new TypeLiteral<ComputeServiceAdapter<Machine, Hardware, Box, Location>>() {
+      bind(new TypeLiteral<ComputeServiceAdapter<VagrantNode, Hardware, Box, Location>>() {
       }).to(VagrantComputeServiceAdapter.class);
-      bind(new TypeLiteral<Function<Machine, NodeMetadata>>() {
+      bind(new TypeLiteral<Function<VagrantNode, NodeMetadata>>() {
       }).to(MachineToNodeMetadata.class);
       bind(new TypeLiteral<Function<MachineState, Status>>() {
       }).to(MachineStateToJcloudsStatus.class);

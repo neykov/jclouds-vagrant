@@ -27,6 +27,7 @@ import org.jclouds.compute.domain.NodeMetadataBuilder;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.vagrant.domain.VagrantNode;
 
 import vagrant.Vagrant;
 import vagrant.api.VagrantApi;
@@ -38,7 +39,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
-public class MachineToNodeMetadata implements Function<Machine, NodeMetadata> {
+public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
     private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
 
     Function<MachineState, Status> toPortableNodeStatus;
@@ -49,7 +50,25 @@ public class MachineToNodeMetadata implements Function<Machine, NodeMetadata> {
     }
 
     @Override
-    public NodeMetadata apply(Machine input) {
+    public NodeMetadata apply(VagrantNode node) {
+        Machine input = node.getMachine();
+        SshConfig sshConfig = node.getSshConfig();
+        NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
+        .id(input.getId())
+        .name(input.getName())
+//        .group(???)
+//      .operatingSystem(null)
+        .location(new LocationBuilder().id("localhost").description("localhost").scope(LocationScope.HOST).build())
+        .hostname(input.getName())
+        .status(toPortableNodeStatus.apply(input.getStatus()))
+        .loginPort(22)
+        .privateAddresses(node.getNetworks())
+        .publicAddresses(ImmutableList.<String>of())
+        .credentials(LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
+        return nodeMetadataBuilder.build();
+    }
+    
+    public NodeMetadata apply2(Machine input) {
         VagrantApi vagrant = Vagrant.forMachine(input);
         NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
             .id(input.getId())
