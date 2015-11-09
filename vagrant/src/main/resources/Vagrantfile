@@ -26,6 +26,7 @@ Vagrant.configure(2) do |config|
         srv.vm.synced_folder '.', '/vagrant', disabled: true
         srv.vm.provider "virtualbox" do |v|
            v.memory = machine_config["memory"]
+           v.customize ["modifyvm", :id, "--nictype1", "virtio"]
         end
     end
   end
