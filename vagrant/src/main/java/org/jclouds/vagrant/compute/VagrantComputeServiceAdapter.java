@@ -118,13 +118,16 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
     private Collection<String> getNetworks(MachineName machineName, VagrantApi vagrant) {
-        String networks = vagrant.ssh(machineName.getName(), "ip address show | grep 'scope global'");
-          Matcher m = INTERFACE.matcher(networks);
-          Collection<String> ips = new ArrayList<String>();
-          while (m.find()) {
-              ips.add(m.group(1));
-          }
-          return ips;
+       String networks = vagrant.ssh(machineName.getName(), "ip address show | grep 'scope global'");
+       Matcher m = INTERFACE.matcher(networks);
+       Collection<String> ips = new ArrayList<String>();
+       while (m.find()) {
+          String network = m.group(1);
+          // TODO figure out a more generic approach to ignore unreachable networkds (this one is the NAT'd address).
+          if (network.startsWith("10.")) continue;
+          ips.add(network);
+       }
+       return ips;
     }
 
    private void init(File path, String name, Template template) {
