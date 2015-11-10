@@ -106,6 +106,23 @@ end
 
 Where `10.0.2.2` is the IP of your host as seen from the vagrant machines (in this case the NAT interface).
 
+Cleaning up
+-----------
+
+Brooklyn leaves running machines if not stopped correctly so they need to be destroyed manually periodically.
+All machines live in `~/.jagrant/machines`. Create `cleanup.sh` in the folder and execute it to destroy machines created by the provider:
+
+```
+for node in broo*; do
+  [ ! -d "$node" ] && continue # if no matching folder will pass the non-expanded arg
+  echo Destroying $node
+  pushd $node > /dev/null
+  vagrant destroy --force
+  popd > /dev/null
+  rm -rf $node
+done
+```
+
 
 Limitations
 -----------
