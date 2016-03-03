@@ -16,84 +16,65 @@
  */
 package org.jclouds.vagrant.functions;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
+import java.util.Set;
 
+import org.jclouds.collect.Memoized;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.NodeMetadataBuilder;
-import org.jclouds.domain.LocationBuilder;
-import org.jclouds.domain.LocationScope;
+import org.jclouds.domain.Credentials;
+import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.vagrant.domain.VagrantNode;
 
-import vagrant.Vagrant;
-import vagrant.api.VagrantApi;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.inject.Inject;
+
 import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
-
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
-    private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
-
-    Function<MachineState, Status> toPortableNodeStatus;
+    private final Function<MachineState, Status> toPortableNodeStatus;
+    private final Supplier<Set<? extends Location>> locations;
+    private final Map<String, Credentials> credentialStore;
 
     @Inject
-    public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus) {
+    public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
+            @Memoized Supplier<Set<? extends Location>> locations,
+            Map<String, Credentials> credentialStore) {
         this.toPortableNodeStatus = toPortableNodeStatus;
+        this.locations = locations;
+        this.credentialStore = credentialStore;
     }
 
     @Override
     public NodeMetadata apply(VagrantNode node) {
         Machine input = node.getMachine();
-        SshConfig sshConfig = node.getSshConfig();
         NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
-        .id(input.getId())
+        .ids(input.getId())
         .name(input.getName())
-//        .group(???)
+        .group(input.getPath().getName())
 //      .operatingSystem(null)
-        .location(new LocationBuilder().id("localhost").description("localhost").scope(LocationScope.HOST).build())
+        .location(Iterables.getOnlyElement(locations.get()))
         .hostname(input.getName())
         .status(toPortableNodeStatus.apply(input.getStatus()))
         .loginPort(22)
         .privateAddresses(node.getNetworks())
         .publicAddresses(ImmutableList.<String>of())
-        .credentials(LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
-        return nodeMetadataBuilder.build();
-    }
-    
-    public NodeMetadata apply2(Machine input) {
-        VagrantApi vagrant = Vagrant.forMachine(input);
-        NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
-            .id(input.getId())
-            .name(input.getName())
-//            .group(???)
-//          .operatingSystem(null)
-            .location(new LocationBuilder().id("localhost").description("localhost").scope(LocationScope.HOST).build())
-            .hostname(input.getName());
-        if (input.exists()) {
-            String networks = vagrant.ssh(input.getName(), "ip address show | grep 'scope global'");
-            Matcher m = INTERFACE.matcher(networks);
-            Collection<String> ips = new ArrayList<String>();
-            while (m.find()) {
-                ips.add(m.group(1));
-            }
+        .hostname(node.getHostname());
 
-            SshConfig sshConfig = vagrant.sshConfig(input.getName());
-            nodeMetadataBuilder
-                .status(toPortableNodeStatus.apply(input.getStatus()))
-                .loginPort(22)
-                .privateAddresses(ips)
-                .publicAddresses(ImmutableList.<String>of())
-                .credentials(LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
-        } else {
-            nodeMetadataBuilder.status(Status.TERMINATED);
+        // Credentials could be changed by AdminAccess script, check store first
+        Credentials credentials = credentialStore.get("node#" + input.getId());
+        if (credentials != null) {
+            nodeMetadataBuilder.credentials(LoginCredentials.fromCredentials(credentials));
+        } else if (node.getSshConfig() != null) {
+            SshConfig sshConfig = node.getSshConfig();
+            nodeMetadataBuilder.credentials(LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
         }
         return nodeMetadataBuilder.build();
     }

@@ -18,25 +18,33 @@ package org.jclouds.vagrant.domain;
 
 import java.util.Collection;
 
+import com.google.common.collect.ImmutableSet;
+
 import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
 public class VagrantNode {
-    private Machine machine;
+    private final Machine machine;
     private SshConfig sshConfig;
-    private Collection<String> networks;
-    private MachineState machineState;
+    private Collection<String> networks = ImmutableSet.of();
+    private MachineState machineState = MachineState.POWER_OFF;
+    private String hostname;
 
-    public VagrantNode(Machine machine, SshConfig sshConfig, Collection<String> networks, MachineState state) {
+    public VagrantNode(Machine machine) {
         this.machine = machine;
-        this.sshConfig = sshConfig;
-        this.networks = networks;
-        this.machineState = state;
     }
-    
+
     public void setMachineState(MachineState state) {
         this.machineState = state;
+    }
+
+    public void setSshConfig(SshConfig sshConfig) {
+        this.sshConfig = sshConfig;
+    }
+
+    public void setNetworks(Collection<String> networks) {
+        this.networks = networks;
     }
 
     public Machine getMachine() {
@@ -53,6 +61,14 @@ public class VagrantNode {
 
     public MachineState getMachineState() {
         return machineState;
+    }
+
+    public String getHostname() {
+        return hostname;
+    }
+
+    public void setHostname(String hostname) {
+        this.hostname = hostname;
     }
 
 }

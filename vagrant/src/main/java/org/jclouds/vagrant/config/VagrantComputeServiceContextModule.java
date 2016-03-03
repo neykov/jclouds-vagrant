@@ -18,23 +18,27 @@ package org.jclouds.vagrant.config;
 
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.config.ComputeServiceAdapterContextModule;
+import org.jclouds.compute.config.PersistNodeCredentialsModule;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.NodeMetadata.Status;
+import org.jclouds.compute.strategy.PopulateDefaultLoginCredentialsForImageStrategy;
 import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
 import org.jclouds.vagrant.compute.VagrantComputeServiceAdapter;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.domain.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
 
+import com.google.common.base.Function;
+import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
+
 import vagrant.api.domain.Box;
 import vagrant.api.domain.MachineState;
-
-import com.google.common.base.Function;
-import com.google.inject.TypeLiteral;
 
 public class VagrantComputeServiceContextModule extends ComputeServiceAdapterContextModule<VagrantNode, Hardware, Box, Location> {
 
@@ -53,10 +57,24 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       }).to(this.<Hardware>getIdentityFunction());
       bind(new TypeLiteral<Function<Location, Location>>() {
       }).to(this.<Location>getIdentityFunction());
+      bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
    }
-   
+
+   @Override
+   protected void install(Module module) {
+      // override PersistNodeCredentialsModule bindings, any better way to do it?
+      if (module instanceof PersistNodeCredentialsModule) {
+          super.install(new PersistVagrantCredentialsModule());
+      } else {
+          super.install(module);
+      }
+   }
+
+
+
    @SuppressWarnings("unchecked")
    private <T> Class<Function<T, T>> getIdentityFunction() {
       return (Class<Function<T, T>>)(Class<?>)IdentityFunction.class;
    }
+
 }

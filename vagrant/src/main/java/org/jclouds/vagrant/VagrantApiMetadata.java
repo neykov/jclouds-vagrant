@@ -22,11 +22,8 @@ import java.util.Properties;
 import org.jclouds.apis.ApiMetadata;
 import org.jclouds.apis.internal.BaseApiMetadata;
 import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.rest.internal.BaseHttpApiMetadata;
+import org.jclouds.compute.config.ComputeServiceProperties;
 import org.jclouds.vagrant.config.VagrantComputeServiceContextModule;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.inject.Module;
 
 public class VagrantApiMetadata extends BaseApiMetadata {
 
@@ -46,23 +43,25 @@ public class VagrantApiMetadata extends BaseApiMetadata {
    public static class Builder extends BaseApiMetadata.Builder<Builder> {
 
       protected Builder() {
-         Properties defaultProperties = BaseApiMetadata.defaultProperties();
-         defaultProperties.setProperty("vagrant.image.login-user", "vagrant");
-         defaultProperties.setProperty("vagrant.container-root", System.getProperty("user.home") + "/.jagrant/machines");
-
          id("vagrant")
          .name("Vagrant API")
          .identityName("User")
          .credentialName("Password")
-         .defaultProperties(BaseHttpApiMetadata.defaultProperties())
-         .defaultEndpoint("http://0.0.0.0:0/")
-         .documentation(URI.create("https://www.virtualbox.org/sdkref/index.html"))
+         .defaultEndpoint("https://atlas.hashicorp.com/")
+         .documentation(URI.create("https://www.vagrantup.com/docs"))
          .view(ComputeServiceContext.class)
          .defaultIdentity("guest")
          .defaultCredential("guest")
-         .defaultProperties(defaultProperties)
-         .defaultModules(ImmutableSet.<Class<? extends Module>>of(VagrantComputeServiceContextModule.class));
+         .defaultProperties(defaultProperties())
+         .defaultModule(VagrantComputeServiceContextModule.class);
       }
+
+    private Properties defaultProperties() {
+       Properties defaultProperties = BaseApiMetadata.defaultProperties();
+       defaultProperties.setProperty("vagrant.container-root", System.getProperty("user.home") + "/.jagrant/machines");
+       defaultProperties.put(ComputeServiceProperties.TEMPLATE, "osFamily=UBUNTU");
+       return defaultProperties;
+    }
 
       @Override
       public ApiMetadata build() {

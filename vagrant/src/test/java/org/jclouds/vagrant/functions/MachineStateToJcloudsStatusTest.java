@@ -16,25 +16,6 @@
  */
 package org.jclouds.vagrant.functions;
 
-import org.jclouds.compute.domain.NodeMetadata.Status;
-
-import vagrant.api.domain.MachineState;
-
-import com.google.common.base.Function;
-
-public class MachineStateToJcloudsStatus implements Function<MachineState, Status> {
-
-   @Override
-   public Status apply(MachineState input) {
-      if (input == null) {
-         return null;
-      }
-      switch (input) {
-      case POWER_OFF: return Status.SUSPENDED;
-      case RUNNING: return Status.RUNNING;
-      case SAVED: return Status.SUSPENDED;
-      }
-      return Status.PENDING;
-   }
+public class MachineStateToJcloudsStatusTest {
 
 }

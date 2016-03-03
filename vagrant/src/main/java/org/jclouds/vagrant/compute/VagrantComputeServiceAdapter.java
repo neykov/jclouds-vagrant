@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -37,11 +37,24 @@ import javax.inject.Named;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.HardwareBuilder;
+import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.domain.Volume.Type;
+import org.jclouds.compute.domain.VolumeBuilder;
 import org.jclouds.domain.Location;
+import org.jclouds.domain.LocationBuilder;
+import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.util.VagrantUtils;
+
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 
 import vagrant.Vagrant;
 import vagrant.api.VagrantApi;
@@ -50,15 +63,10 @@ import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-
 public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
    private File nodeContainer;
-   private Map<String, VagrantNode> machines = new HashMap<String, VagrantNode>();
+   // TODO FIXME - use just as cache, expire items
+   private static Map<String, VagrantNode> machines = new HashMap<String, VagrantNode>();
    private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
    
    @Inject
@@ -92,33 +100,51 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       MachineName machineName = new MachineName(group, name);
       VagrantApi vagrant = getMachine(machineName);
       init(vagrant.getPath(), name, template);
-      vagrant.up(machineName.getName());
-      SshConfig sshConfig = vagrant.sshConfig(machineName.getName());
+
+      Machine newMachine = new Machine();
+      newMachine.setId(group + "/" + name);
+      newMachine.setName(name);
+      newMachine.setStatus(MachineState.POWER_OFF);
+      newMachine.setPath(getMachinePath(machineName));
+
+//      Machine newMachine = vagrant.status(machineName.getName());
+//      newMachine.setId(group + "/" + name);
+
+      VagrantNode node = new VagrantNode(newMachine);
+
+      machines.put(newMachine.getId(), node);
+
+      return startMachine(vagrant, node);
+   }
+
+   private NodeAndInitialCredentials<VagrantNode> startMachine(VagrantApi vagrant, VagrantNode node) {
+      Machine newMachine = node.getMachine();
+
+      vagrant.up(newMachine.getName());
+
+      SshConfig sshConfig = vagrant.sshConfig(newMachine.getName());
+      node.setSshConfig(sshConfig);
+      node.setNetworks(getNetworks(newMachine.getName(), vagrant));
+      node.setHostname(getHostname(newMachine.getName(), vagrant));
+      node.setMachineState(MachineState.RUNNING);
+      newMachine.setStatus(MachineState.RUNNING);
+
       String privateKey;
       try {
          privateKey = Files.toString(new File(sshConfig.getIdentityFile()), Charset.defaultCharset());
       } catch (IOException e) {
          throw new IllegalStateException("Invalid private key " + sshConfig.getIdentityFile(), e);
       }
+
       LoginCredentials loginCredentials = LoginCredentials.builder()
             .user(sshConfig.getUser())
             .privateKey(privateKey)
             .build();
-      Machine newMachine = new Machine();
-      newMachine.setId(group + "/" + name);
-      newMachine.setName(name);
-      newMachine.setStatus(MachineState.RUNNING);
-      newMachine.setPath(getMachinePath(machineName));
-
-//      Machine newMachine = vagrant.status(machineName.getName());
-      newMachine.setId(group + "/" + name);
-      VagrantNode node = new VagrantNode(newMachine, sshConfig, getNetworks(machineName, vagrant), MachineState.RUNNING);
-      machines.put(newMachine.getId(), node);
       return new NodeAndInitialCredentials<VagrantNode>(node, newMachine.getId(), loginCredentials);
    }
 
-    private Collection<String> getNetworks(MachineName machineName, VagrantApi vagrant) {
-       String networks = vagrant.ssh(machineName.getName(), "ip address show | grep 'scope global'");
+   private Collection<String> getNetworks(String name, VagrantApi vagrant) {
+       String networks = vagrant.ssh(name, "ip address show | grep 'scope global'");
        Matcher m = INTERFACE.matcher(networks);
        Collection<String> ips = new ArrayList<String>();
        while (m.find()) {
@@ -128,6 +154,10 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
           ips.add(network);
        }
        return ips;
+    }
+
+   private String getHostname(String name, VagrantApi vagrant) {
+       return vagrant.ssh(name, "hostname").trim();
     }
 
    private void init(File path, String name, Template template) {
@@ -160,19 +190,39 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       try {
          out.write("box: " + template.getImage().getId() + "\n");
          out.write("memory: " + template.getHardware().getRam() + "\n");
+         out.write("cpus: " + countProcessors(template));
       } finally {
          out.close();
       }
    }
 
+   private int countProcessors(Template template) {
+      int cnt = 0;
+      for (Processor p : template.getHardware().getProcessors()) {
+          cnt += p.getCores();
+      }
+      return cnt;
+   }
+
    @Override
    public Iterable<Hardware> listHardwareProfiles() {
-        Set<Hardware> hardware = Sets.newLinkedHashSet();
-        hardware.add(new HardwareBuilder().ids("t1.micro").hypervisor("VirtualBox").name("t1.micro").ram(512).build());
-        hardware.add(new HardwareBuilder().ids("m1.small").hypervisor("VirtualBox").name("m1.small").ram(1024).build());
-        hardware.add(new HardwareBuilder().ids("m1.medium").hypervisor("VirtualBox").name("m1.medium").ram(3840).build());
-        hardware.add(new HardwareBuilder().ids("m1.large").hypervisor("VirtualBox").name("m1.large").ram(7680).build());
-        return hardware;
+      Set<Hardware> hardware = Sets.newLinkedHashSet();
+      hardware.add(hardware("micro", 512, 1));
+      hardware.add(hardware("small", 1024, 1));
+      hardware.add(hardware("medium", 2048, 2));
+      hardware.add(hardware("large", 4096, 2));
+      return hardware;
+   }
+
+   private Hardware hardware(String name, int ram, int cores) {
+      return new HardwareBuilder()
+              .ids(name)
+              .hypervisor("VirtualBox")
+              .name(name)
+              .processor(new Processor(cores, 1))
+              .ram(ram)
+              .volume(new VolumeBuilder().bootDevice(true).durable(true).type(Type.LOCAL).build())
+              .build();
    }
 
    @Override
@@ -194,12 +244,13 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Location> listLocations() {
-      return Collections.emptyList();
+      return ImmutableList.of(
+              new LocationBuilder().id("localhost").description("localhost").scope(LocationScope.HOST).build());
    }
 
    @Override
    public VagrantNode getNode(String id) {
-       return machines.get(id);
+      return machines.get(id);
 //      MachineName machine = new MachineName(id);
 //      if (getMachinePath(machine).exists()) {
 //         return getMachine(machine).status(machine.getName());
@@ -225,46 +276,59 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    @Override
    public void rebootNode(String id) {
       MachineName machine = new MachineName(id);
-      getMachine(machine).reload(machine.getName());
+      try {
+          getMachine(machine).halt(machine.getName());
+      } catch (IllegalStateException e) {
+          getMachine(machine).haltForced(machine.getName());
+      }
+      getMachine(machine).up(machine.getName());
    }
 
    @Override
    public void resumeNode(String id) {
       MachineName machine = new MachineName(id);
       getMachine(machine).resume(machine.getName());
+      VagrantNode node = machines.get(id);
+      node.setMachineState(MachineState.RUNNING);
+      node.getMachine().setStatus(MachineState.RUNNING);
    }
 
    @Override
    public void suspendNode(String id) {
       MachineName machine = new MachineName(id);
       getMachine(machine).suspend(machine.getName());
+      VagrantNode node = machines.get(id);
+      node.setMachineState(MachineState.SAVED);
+      node.getMachine().setStatus(MachineState.SAVED);
    }
 
+//   @Override
+//   public Iterable<VagrantNode> listNodes() {
+//       return ImmutableSet.of();
+//   }
    @Override
    public Iterable<VagrantNode> listNodes() {
-       return ImmutableSet.of();
+      return FluentIterable.from(Arrays.asList(nodeContainer.listFiles()))
+          .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
+             @Override
+             public Collection<VagrantNode> apply(File input) {
+                VagrantApi vagrant = Vagrant.forPath(input);
+                if (input.isDirectory() && vagrant.exists()) {
+                   Collection<Machine> status = vagrant.status();
+                   Collection<VagrantNode> nodes = new ArrayList<VagrantNode>(machines.size());
+                   for (Machine m : status) {
+                       VagrantNode n = machines.get(m.getId());
+                       if (n != null) {
+                           nodes.add(n);
+                       }
+                   }
+                   return nodes;
+                } else {
+                   return ImmutableList.of();
+                }
+           }
+         });
    }
-//   @Override
-//   public Iterable<Machine> listNodes() {
-//      File[] nodePaths = nodeContainer.listFiles(new FileFilter() {
-//         @Override
-//         public boolean accept(File arg0) {
-//            return arg0.isDirectory();
-//         }
-//      });
-//      return FluentIterable.from(Arrays.asList(nodePaths))
-//         .transformAndConcat(new Function<File, Collection<Machine>>() {
-//            @Override
-//            public Collection<Machine> apply(File input) {
-//               VagrantApi vagrant = Vagrant.forPath(input);
-//               if (vagrant.exists()) {
-//                   return vagrant.status();
-//               } else {
-//                   return ImmutableList.of();
-//               }
-//            }
-//         });
-//   }
 
    @Override
    public Iterable<VagrantNode> listNodesByIds(final Iterable<String> ids) {
