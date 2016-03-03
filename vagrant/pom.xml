@@ -48,20 +48,59 @@
 
   <dependencies>
   	<!-- resolved by jitpack.io -->
-    <dependency>
+    <!-- dependency>
       <groupId>com.github.neykov</groupId>
       <artifactId>vagrant-java-bindings</artifactId>
       <version>4319a2dfb3</version>
-    </dependency>
-    <!-- dependency>
+    </dependency -->
+    <dependency>
       <groupId>name.neykov</groupId>
       <artifactId>vagrant-java-bindings</artifactId>
       <version>0.0.1-SNAPSHOT</version>
-    </dependency -->
+    </dependency>
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-compute</artifactId>
       <version>${jclouds.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.jclouds</groupId>
+      <artifactId>jclouds-core</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds</groupId>
+      <artifactId>jclouds-compute</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds.driver</groupId>
+      <artifactId>jclouds-slf4j</artifactId>
+      <version>${project.parent.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds.driver</groupId>
+      <artifactId>jclouds-slf4j</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds.driver</groupId>
+      <artifactId>jclouds-sshj</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
@@ -69,7 +108,7 @@
         override https://github.com/jclouds/jclouds/commit/e184091951b0029d4dd1d5659d5d326966c06429
         messes with eclipse, can't import project
      -->
-    <resources combine.self="override">
+    <!-- resources combine.self="override">
       <resource>
         <directory>src/main/clojure</directory>
       </resource>
@@ -79,7 +118,7 @@
     </resources>
     <plugins>
       <plugin>
-        <!-- fix compile with Java 6 - plexus-compiler-javac-errorprone requires JRE 7 -->
+        <!- fix compile with Java 6 - plexus-compiler-javac-errorprone requires JRE 7 ->
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
             <compilerId>javac</compilerId>
@@ -92,6 +131,6 @@
             </compilerArgs>
         </configuration>
       </plugin>
-    </plugins>
+    </plugins-->
    </build>
 </project>

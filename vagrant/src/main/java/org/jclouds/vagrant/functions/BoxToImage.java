@@ -42,19 +42,40 @@ public class BoxToImage implements Function<Box, Image> {
 
    @Override
    public Image apply(Box input) {
-      OperatingSystem os = new OperatingSystem(OsFamily.UNRECOGNIZED, input.getName(), input.getVersion(), null, input.getName(), true);
+      OperatingSystem os = new OperatingSystem(inferOsFamily(input), input.getName(), inferOsVersion(input), null, input.getName(), true);
       File boxPath = getBoxPath(input);
       String config = readBoxConfig(boxPath);
       LoginCredentials cred = parseBoxCredentials(config);
       return new ImageBuilder()
          .id(input.getName())
          .name(input.getName())
-         .version(input.getVersion())
+         .version(inferOsVersion(input))
 //         .description()
          .operatingSystem(os)
          .status(Status.AVAILABLE)
          .defaultCredentials(cred)
          .build();
+   }
+   private OsFamily inferOsFamily(Box input) {
+      String name = input.getName().toUpperCase();
+      for (OsFamily family : OsFamily.values()) {
+         if (name.contains(family.name())) {
+            return family;
+         }
+      }
+      return OsFamily.UNRECOGNIZED;
+   }
+   private String inferOsVersion(Box input) {
+      String name = input.getName().toLowerCase();
+      if (name.contains("trusty")) {
+         return "14.04";
+      } else if (name.contains("wily")) {
+         return "15.10";
+      } else if (name.contains("precise")) {
+         return "12.04";
+      } else {
+         return input.getVersion();
+      }
    }
    private LoginCredentials parseBoxCredentials(String config) {
       return LoginCredentials.builder().user("vagrant").build();
@@ -78,7 +99,7 @@ public class BoxToImage implements Function<Box, Image> {
       File boxes = new File(getVagrantHome(), "boxes");
       File boxPath = new File(boxes, getPathName(input));
       File providerPath = new File(boxPath, input.getProvider());
-      File versionPath = new File(providerPath, input.getVersion());
+      File versionPath = new File(providerPath, inferOsVersion(input));
       return versionPath;
    }
    private String getPathName(Box input) {
