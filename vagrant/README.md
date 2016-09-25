@@ -123,6 +123,13 @@ for node in broo*; do
 done
 ```
 
+Testing
+-----------
+
+```
+mvn clean install -Plive
+```
+
 
 Limitations
 -----------
