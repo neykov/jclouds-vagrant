@@ -50,6 +50,7 @@ import org.jclouds.vagrant.util.VagrantUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -250,6 +251,15 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public VagrantNode getNode(String id) {
+      // needed for BaseComputeServiceLiveTest.testAScriptExecutionAfterBootWithBasicTemplate()
+      // waits for the thread updating the credentialStore to execute
+      try {
+         Thread.sleep(200);
+      } catch (InterruptedException e) {
+         Thread.currentThread().interrupt();
+         throw Throwables.propagate(e);
+      }
+
       return machines.get(id);
 //      MachineName machine = new MachineName(id);
 //      if (getMachinePath(machine).exists()) {
