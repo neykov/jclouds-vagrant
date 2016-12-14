@@ -44,7 +44,7 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
     protected final Map<OsFamily, LoginCredentials> osFamilyToCredentials;
 
     @Inject
-    public VagrantDefaultImageCredentials(@Nullable @Named("image") LoginCredentials creds,
+    VagrantDefaultImageCredentials(@Nullable @Named("image") LoginCredentials creds,
              Map<String, Credentials> credentialStore, Map<OsFamily, LoginCredentials> osFamilyToCredentials) {
        this.creds = creds;
        this.credentialStore = credentialStore;
@@ -83,7 +83,7 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
      }
 
      private String readBoxConfig(File boxPath) {
-        if (boxPath.exists()) return "";
+        if (!boxPath.exists()) return "";
         try {
            return Files.toString(new File(boxPath, "Vagrantfile"), Charsets.UTF_8);
         } catch (IOException e) {

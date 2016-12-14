@@ -65,7 +65,7 @@ public class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLive
    }
 
    @Override
-   @Test(enabled = false)
+   @Test
    public void testOptionToNotBlock() throws Exception {
        // LoginCredentials are available only after the machine starts,
        // so can't return earlier.

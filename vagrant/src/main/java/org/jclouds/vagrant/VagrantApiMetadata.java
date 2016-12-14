@@ -25,6 +25,9 @@ import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.config.ComputeServiceProperties;
 import org.jclouds.vagrant.config.VagrantComputeServiceContextModule;
 
+import com.google.auto.service.AutoService;
+
+@AutoService(ApiMetadata.class)
 public class VagrantApiMetadata extends BaseApiMetadata {
 
    public VagrantApiMetadata() {

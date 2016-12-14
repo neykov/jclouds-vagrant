@@ -16,6 +16,8 @@
  */
 package org.jclouds.vagrant.compute;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,6 +33,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -45,6 +48,9 @@ import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.location.suppliers.all.JustProvider;
+import org.jclouds.logging.Logger;
+import org.jclouds.vagrant.domain.MachineName;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.util.VagrantUtils;
 
@@ -65,35 +71,21 @@ import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
 public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
-   private File nodeContainer;
    // TODO FIXME - use just as cache, expire items
    private static Map<String, VagrantNode> machines = new HashMap<String, VagrantNode>();
    private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
    
-   @Inject
-   public VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer) {
-      this.nodeContainer = new File(nodeContainer);
-      this.nodeContainer.mkdirs();
-   }
+   @Resource
+   protected Logger logger = Logger.NULL;
+   
+   private final File nodeContainer;
+   private final JustProvider locationSupplier;
 
-   private static class MachineName {
-      private String group;
-      private String name;
-      public MachineName(String group, String name) {
-         this.group = group;
-         this.name = name;
-      }
-      public MachineName(String id) {
-         String[] arr = id.split("/");
-         group = arr[0];
-         name = arr[1];
-      }
-      public String getGroup() {
-         return group;
-      }
-      public String getName() {
-         return name;
-      }
+   @Inject
+   VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer, JustProvider locationSupplier) {
+      this.nodeContainer = new File(checkNotNull(nodeContainer, "nodeContainer"));
+      this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
+      this.nodeContainer.mkdirs();
    }
 
    @Override
@@ -145,6 +137,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
    private Collection<String> getNetworks(String name, VagrantApi vagrant) {
+       // TODO Add ifconfig fallback in case ip is not available; ifconfig not available on CentOS 7.
        String networks = vagrant.ssh(name, "ip address show | grep 'scope global'");
        Matcher m = INTERFACE.matcher(networks);
        Collection<String> ips = new ArrayList<String>();
@@ -166,7 +159,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          writeVagrantfile(path);
          initMachineConfig(path, name, template);
       } catch (IOException e) {
-         throw new RuntimeException(e);
+         throw new IllegalStateException("Unable to initialize Vagrant configuration at " + path + " for machine " + name, e);
       }
    }
 
@@ -245,8 +238,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Location> listLocations() {
+      Location provider = Iterables.getOnlyElement(locationSupplier.get());
       return ImmutableList.of(
-              new LocationBuilder().id("localhost").description("localhost").scope(LocationScope.HOST).build());
+              new LocationBuilder().id("localhost").description("localhost").parent(provider).scope(LocationScope.HOST).build());
    }
 
    @Override
@@ -261,17 +255,6 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       }
 
       return machines.get(id);
-//      MachineName machine = new MachineName(id);
-//      if (getMachinePath(machine).exists()) {
-//         return getMachine(machine).status(machine.getName());
-//      } else {
-//         Machine ret = new Machine();
-//         ret.setId(id);
-//         ret.setName(machine.getName());
-//         ret.setPath(getMachinePath(machine));
-//         ret.setStatus(null);
-//         return ret;
-//      }
    }
 
    @Override
@@ -289,6 +272,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       try {
           getMachine(machine).halt(machine.getName());
       } catch (IllegalStateException e) {
+          logger.warn(e, "Failed graceful shutdown of machine " + id + " (for reboot). Will try to halt it forcefully instead.");
           getMachine(machine).haltForced(machine.getName());
       }
       getMachine(machine).up(machine.getName());

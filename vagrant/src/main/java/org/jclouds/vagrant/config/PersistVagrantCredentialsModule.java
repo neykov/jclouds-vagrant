@@ -35,6 +35,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.functions.CredentialsFromAdminAccess;
+import org.jclouds.vagrant.domain.MachineName;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -73,7 +74,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
               LoginCredentials creds = LoginCredentials.fromCredentials(credentials);
               input = NodeMetadataBuilder.fromNodeMetadata(input).credentials(creds).build();
               credentialStore.put("node#" + input.getId(), input.getCredentials());
-              updateMachine(nodeContainer, input, creds);
+              updateMachine(nodeContainer, input.getId(), creds);
            }
            return input;
         }
@@ -95,21 +96,17 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
            input = super.apply(input);
            if (input.getCredentials() != null) {
               credentialStore.put("node#" + input.getId(), input.getCredentials());
-              updateMachine(nodeContainer, input, input.getCredentials());
+              updateMachine(nodeContainer, input.getId(), input.getCredentials());
            }
            return input;
         }
 
      }
 
-     //TODO copy&paste code, clean up & extract into function for reuse
-     private static void updateMachine(String nodeContainer, NodeMetadata input, LoginCredentials credentials) {
-        String[] arr = input.getId().split("/");
-        String group = arr[0];
-        String name = arr[1];
-        File machines = new File(nodeContainer, group + "/machines");
-        File machineConfig = new File(machines, name + ".yaml");
-
+     private static void updateMachine(String nodeContainer, String id, LoginCredentials credentials) {
+        MachineName machineName = new MachineName(id);
+        File machines = new File(nodeContainer, machineName.getGroup() + "/machines");
+        File machineConfig = new File(machines, machineName.getName() + ".yaml");
 
         String str = readFile(machineConfig);
         Map<String, String> config = new HashMap<String, String>(Splitter.on('\n').trimResults().withKeyValueSeparator(':').split(str.trim()));
@@ -121,7 +118,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
             config.put("password", credentials.getOptionalPassword().get());
         }
         if (credentials.getOptionalPrivateKey().isPresent()) {
-            File privateKeyFile = new File(machineConfig.getParentFile(), name + "." + credentials.getUser() + ".key");
+            File privateKeyFile = new File(machineConfig.getParentFile(), machineName.getName() + "." + credentials.getUser() + ".key");
             config.put("private_key_path", privateKeyFile.getAbsolutePath());
             write(privateKeyFile, credentials.getOptionalPrivateKey().get());
         }
@@ -130,13 +127,11 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
      }
 
     private static String readFile(File machineConfig) {
-        String str;
         try {
-            str = Files.toString(machineConfig, Charsets.UTF_8);
+            return Files.toString(machineConfig, Charsets.UTF_8);
         } catch (IOException e) {
-            throw new IllegalStateException("Cant read machine chonfig " + machineConfig.getAbsolutePath(), e);
+            throw new IllegalStateException("Can't read machine chonfig " + machineConfig.getAbsolutePath(), e);
         }
-        return str;
     }
 
     private static void write(File machineConfig, Map<String, String> config) {

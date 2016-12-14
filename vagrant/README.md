@@ -4,12 +4,6 @@ Vagrant provider for jclouds
 Building
 --------
 
-1. Vagrant bindings
-  * `git clone https://github.com/neykov/vagrant-java-bindings`
-  * `cd vagrant-java-bindings`
-  * `mvn clean install`
-  * Copy `target/vagrant-java-bindings-0.0.1-SNAPSHOT.jar` to jcloud's classpath
-2. Vagrant provider
   * `git clone https://github.com/neykov/jclouds-vagrant`
   * `cd jclouds-vagrant/vagrant`
   * `mvn clean install`

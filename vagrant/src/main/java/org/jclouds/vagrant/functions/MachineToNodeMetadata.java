@@ -40,7 +40,7 @@ import vagrant.api.domain.SshConfig;
 
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
     private final Function<MachineState, Status> toPortableNodeStatus;
-    private final Supplier<Set<? extends Location>> locations;
+    private final Location location;
     private final Map<String, Credentials> credentialStore;
 
     @Inject
@@ -48,7 +48,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
             @Memoized Supplier<Set<? extends Location>> locations,
             Map<String, Credentials> credentialStore) {
         this.toPortableNodeStatus = toPortableNodeStatus;
-        this.locations = locations;
+        this.location = Iterables.getOnlyElement(locations.get());
         this.credentialStore = credentialStore;
     }
 
@@ -60,7 +60,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
         .name(input.getName())
         .group(input.getPath().getName())
 //      .operatingSystem(null)
-        .location(Iterables.getOnlyElement(locations.get()))
+        .location(location)
         .hostname(input.getName())
         .status(toPortableNodeStatus.apply(input.getStatus()))
         .loginPort(22)

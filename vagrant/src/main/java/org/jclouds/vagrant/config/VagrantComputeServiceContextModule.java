@@ -23,6 +23,8 @@ import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.NodeMetadata.Status;
+import org.jclouds.compute.domain.internal.ArbitraryCpuRamTemplateBuilderImpl;
+import org.jclouds.compute.domain.internal.TemplateBuilderImpl;
 import org.jclouds.compute.strategy.PopulateDefaultLoginCredentialsForImageStrategy;
 import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
@@ -58,6 +60,7 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       bind(new TypeLiteral<Function<Location, Location>>() {
       }).to(this.<Location>getIdentityFunction());
       bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
+      bind(TemplateBuilderImpl.class).to(ArbitraryCpuRamTemplateBuilderImpl.class);
    }
 
    @Override
