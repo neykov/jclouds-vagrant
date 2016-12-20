@@ -27,8 +27,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,6 +50,7 @@ import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.MachineName;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.util.VagrantUtils;
 
 import com.google.common.base.Function;
@@ -71,8 +70,6 @@ import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
 public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
-   // TODO FIXME - use just as cache, expire items
-   private static Map<String, VagrantNode> machines = new HashMap<String, VagrantNode>();
    private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
    
    @Resource
@@ -80,11 +77,15 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    
    private final File nodeContainer;
    private final JustProvider locationSupplier;
+   private final VagrantNodeRegistry nodeRegistry;
 
    @Inject
-   VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer, JustProvider locationSupplier) {
+   VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer,
+         JustProvider locationSupplier,
+         VagrantNodeRegistry nodeRegistry) {
       this.nodeContainer = new File(checkNotNull(nodeContainer, "nodeContainer"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
+      this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
       this.nodeContainer.mkdirs();
    }
 
@@ -105,7 +106,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
       VagrantNode node = new VagrantNode(newMachine);
 
-      machines.put(newMachine.getId(), node);
+      nodeRegistry.add(node);
 
       return startMachine(vagrant, node);
    }
@@ -119,7 +120,6 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       node.setSshConfig(sshConfig);
       node.setNetworks(getNetworks(newMachine.getName(), vagrant));
       node.setHostname(getHostname(newMachine.getName(), vagrant));
-      node.setMachineState(MachineState.RUNNING);
       newMachine.setStatus(MachineState.RUNNING);
 
       String privateKey;
@@ -254,12 +254,12 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          throw Throwables.propagate(e);
       }
 
-      return machines.get(id);
+      return nodeRegistry.get(id);
    }
 
    @Override
    public void destroyNode(String id) {
-       VagrantNode node = machines.get(id);
+       VagrantNode node = nodeRegistry.get(id);
        node.setMachineState(null);
       MachineName machine = new MachineName(id);
       getMachine(machine).destroy(machine.getName());
@@ -282,7 +282,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    public void resumeNode(String id) {
       MachineName machine = new MachineName(id);
       getMachine(machine).resume(machine.getName());
-      VagrantNode node = machines.get(id);
+      VagrantNode node = nodeRegistry.get(id);
       node.setMachineState(MachineState.RUNNING);
       node.getMachine().setStatus(MachineState.RUNNING);
    }
@@ -291,15 +291,11 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    public void suspendNode(String id) {
       MachineName machine = new MachineName(id);
       getMachine(machine).suspend(machine.getName());
-      VagrantNode node = machines.get(id);
+      VagrantNode node = nodeRegistry.get(id);
       node.setMachineState(MachineState.SAVED);
       node.getMachine().setStatus(MachineState.SAVED);
    }
 
-//   @Override
-//   public Iterable<VagrantNode> listNodes() {
-//       return ImmutableSet.of();
-//   }
    @Override
    public Iterable<VagrantNode> listNodes() {
       return FluentIterable.from(Arrays.asList(nodeContainer.listFiles()))
@@ -309,9 +305,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
                 VagrantApi vagrant = Vagrant.forPath(input);
                 if (input.isDirectory() && vagrant.exists()) {
                    Collection<Machine> status = vagrant.status();
-                   Collection<VagrantNode> nodes = new ArrayList<VagrantNode>(machines.size());
+                   Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                    for (Machine m : status) {
-                       VagrantNode n = machines.get(m.getId());
+                       VagrantNode n = nodeRegistry.get(m.getId());
                        if (n != null) {
                            nodes.add(n);
                        }

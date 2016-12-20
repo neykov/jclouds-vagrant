@@ -59,7 +59,6 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
         .ids(input.getId())
         .name(input.getName())
         .group(input.getPath().getName())
-//      .operatingSystem(null)
         .location(location)
         .hostname(input.getName())
         .status(toPortableNodeStatus.apply(input.getStatus()))
