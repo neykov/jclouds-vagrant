@@ -16,12 +16,14 @@
  */
 package org.jclouds.vagrant.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
 
 public class VagrantUtils {
@@ -34,17 +36,21 @@ public class VagrantUtils {
       folder.delete();
    }
 
+   public static void write(File file, String value) throws IOException {
+      write(file, new ByteArrayInputStream(value.getBytes(Charsets.UTF_8)));
+   }
+
    public static void write(File file, InputStream in) throws IOException {
       OutputStream out = new FileOutputStream(file);
       try {
          ByteStreams.copy(in, out);
       } finally {
          try {
-            in.close();
-         } finally {
             out.close();
+         } finally {
+            in.close();
          }
       }
-      
    }
+
 }

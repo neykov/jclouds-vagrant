@@ -16,6 +16,8 @@
  */
 package org.jclouds.vagrant.config;
 
+import java.util.Map;
+
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.config.ComputeServiceAdapterContextModule;
 import org.jclouds.compute.config.PersistNodeCredentialsModule;
@@ -36,8 +38,10 @@ import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
 import org.jclouds.vagrant.internal.VacuumVagrantNode;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -59,6 +63,8 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       }).to(MachineStateToJcloudsStatus.class);
       bind(new TypeLiteral<Function<Box, Image>>() {
       }).to(BoxToImage.class);
+      bind(new TypeLiteral<Supplier<Map<String, Hardware>>>() {
+      }).to(VagrantHardwareSupplier.class);
       bind(new TypeLiteral<Function<Hardware, Hardware>>() {
       }).to(this.<Hardware>castIdentityFunction());
       bind(new TypeLiteral<Function<Location, Location>>() {

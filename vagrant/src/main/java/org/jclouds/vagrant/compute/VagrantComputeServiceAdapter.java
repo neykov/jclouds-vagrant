@@ -18,16 +18,14 @@ package org.jclouds.vagrant.compute;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,11 +35,10 @@ import javax.inject.Named;
 
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Hardware;
-import org.jclouds.compute.domain.HardwareBuilder;
 import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.domain.Volume;
 import org.jclouds.compute.domain.Volume.Type;
-import org.jclouds.compute.domain.VolumeBuilder;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
@@ -51,15 +48,17 @@ import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.MachineName;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
 import vagrant.Vagrant;
@@ -78,14 +77,17 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private final File nodeContainer;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
+   private final Supplier<Map<String, Hardware>> hardwareSupplier;
 
    @Inject
    VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer,
          JustProvider locationSupplier,
-         VagrantNodeRegistry nodeRegistry) {
+         VagrantNodeRegistry nodeRegistry,
+         Supplier<Map<String, Hardware>> hardwareSupplier) {
       this.nodeContainer = new File(checkNotNull(nodeContainer, "nodeContainer"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
+      this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.nodeContainer.mkdirs();
    }
 
@@ -93,7 +95,6 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    public NodeAndInitialCredentials<VagrantNode> createNodeWithGroupEncodedIntoName(String group, String name, Template template) {
       MachineName machineName = new MachineName(group, name);
       VagrantApi vagrant = getMachine(machineName);
-      init(vagrant.getPath(), name, template);
 
       Machine newMachine = new Machine();
       newMachine.setId(group + "/" + name);
@@ -101,10 +102,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       newMachine.setStatus(MachineState.POWER_OFF);
       newMachine.setPath(getMachinePath(machineName));
 
-//      Machine newMachine = vagrant.status(machineName.getName());
-//      newMachine.setId(group + "/" + name);
-
       VagrantNode node = new VagrantNode(newMachine);
+
+      init(node, template);
 
       nodeRegistry.add(node);
 
@@ -154,12 +154,13 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
        return vagrant.ssh(name, "hostname").trim();
     }
 
-   private void init(File path, String name, Template template) {
+   private void init(VagrantNode node, Template template) {
       try {
-         writeVagrantfile(path);
-         initMachineConfig(path, name, template);
+         writeVagrantfile(node.getMachine().getPath());
+         initMachineConfig(node, template);
       } catch (IOException e) {
-         throw new IllegalStateException("Unable to initialize Vagrant configuration at " + path + " for machine " + name, e);
+         throw new IllegalStateException("Unable to initialize Vagrant configuration at " +
+               node.getMachine().getPath() + " for machine " + node.getMachine().getName(), e);
       }
    }
 
@@ -168,26 +169,24 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       VagrantUtils.write(new File(path, "Vagrantfile"), getClass().getResourceAsStream("/Vagrantfile"));
    }
 
-   private void initMachineConfig(File path, String name, Template template) throws IOException {
-      File machines = new File(path, "machines");
-      machines.mkdirs();
-      
-      File machineConfig = new File(machines, name + ".yaml");
-      
-      Charset encoding = Charset.forName("UTF-8");
-      
-      //write the config manually, no need to pull dependencies for now
-      BufferedWriter out;
-      FileOutputStream fileOut = new FileOutputStream(machineConfig);
-      out = new BufferedWriter(new OutputStreamWriter(fileOut, encoding));
-      
-      try {
-         out.write("box: " + template.getImage().getId() + "\n");
-         out.write("memory: " + template.getHardware().getRam() + "\n");
-         out.write("cpus: " + countProcessors(template));
-      } finally {
-         out.close();
+   private void initMachineConfig(VagrantNode node, Template template) {
+      MachineConfig config = MachineConfig.newInstance(node);
+      List<? extends Volume> volumes = template.getHardware().getVolumes();
+      if (volumes != null) {
+         if (volumes.size() == 1) {
+            Volume volume = Iterables.getOnlyElement(volumes);
+            if (volume.getType() != Type.LOCAL || volume.getSize() != null) {
+               throw new IllegalStateException("Custom volume settings not supported. Volumes required: " + volumes);
+            }
+         } else if (volumes.size() > 1) {
+            throw new IllegalStateException("Custom volume settings not supported. Volumes required: " + volumes);
+         }
       }
+      config.save(ImmutableMap.<String, Object>of(
+            "box", template.getImage().getId(),
+            "hardwareId", template.getHardware().getId(),
+            "memory", Integer.toString(template.getHardware().getRam()),
+            "cpus", Integer.toString(countProcessors(template))));
    }
 
    private int countProcessors(Template template) {
@@ -200,28 +199,11 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Hardware> listHardwareProfiles() {
-      Set<Hardware> hardware = Sets.newLinkedHashSet();
-      hardware.add(hardware("micro", 512, 1));
-      hardware.add(hardware("small", 1024, 1));
-      hardware.add(hardware("medium", 2048, 2));
-      hardware.add(hardware("large", 4096, 2));
-      return hardware;
-   }
-
-   private Hardware hardware(String name, int ram, int cores) {
-      return new HardwareBuilder()
-              .ids(name)
-              .hypervisor("VirtualBox")
-              .name(name)
-              .processor(new Processor(cores, 1))
-              .ram(ram)
-              .volume(new VolumeBuilder().bootDevice(true).durable(true).type(Type.LOCAL).build())
-              .build();
+      return hardwareSupplier.get().values();
    }
 
    @Override
    public Iterable<Box> listImages() {
-      //TODO Include online images
       return Vagrant.forPath(new File(".")).box().list();
    }
 

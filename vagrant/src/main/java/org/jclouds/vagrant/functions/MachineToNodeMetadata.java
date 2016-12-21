@@ -16,19 +16,27 @@
  */
 package org.jclouds.vagrant.functions;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.Map;
 import java.util.Set;
 
 import org.jclouds.collect.Memoized;
+import org.jclouds.compute.domain.Hardware;
+import org.jclouds.compute.domain.HardwareBuilder;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.NodeMetadataBuilder;
+import org.jclouds.compute.domain.Processor;
+import org.jclouds.compute.util.AutomaticHardwareIdSpec;
 import org.jclouds.domain.Credentials;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.util.MachineConfig;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -39,43 +47,69 @@ import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
-    private final Function<MachineState, Status> toPortableNodeStatus;
-    private final Location location;
-    private final Map<String, Credentials> credentialStore;
+   private final Function<MachineState, Status> toPortableNodeStatus;
+   private final Location location;
+   private final Map<String, Credentials> credentialStore;
+   private final Supplier<Map<String, Hardware>> hardwareSupplier;
 
-    @Inject
-    public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
-            @Memoized Supplier<Set<? extends Location>> locations,
-            Map<String, Credentials> credentialStore) {
-        this.toPortableNodeStatus = toPortableNodeStatus;
-        this.location = Iterables.getOnlyElement(locations.get());
-        this.credentialStore = credentialStore;
-    }
+   @Inject
+   public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
+         @Memoized Supplier<Set<? extends Location>> locations,
+         Map<String, Credentials> credentialStore,
+         Supplier<Map<String, Hardware>> hardwareSupplier) {
+      this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
+      this.location = Iterables.getOnlyElement(checkNotNull(locations, "locations").get());
+      this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
+      this.credentialStore = credentialStore;
+   }
 
-    @Override
-    public NodeMetadata apply(VagrantNode node) {
-        Machine input = node.getMachine();
-        NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
-        .ids(input.getId())
-        .name(input.getName())
-        .group(input.getPath().getName())
-        .location(location)
-        .hostname(input.getName())
-        .status(toPortableNodeStatus.apply(input.getStatus()))
-        .loginPort(22)
-        .privateAddresses(node.getNetworks())
-        .publicAddresses(ImmutableList.<String>of())
-        .hostname(node.getHostname());
+   @Override
+   public NodeMetadata apply(VagrantNode node) {
+      MachineConfig machineConfig = MachineConfig.newInstance(node);
 
-        // Credentials could be changed by AdminAccess script, check store first
-        Credentials credentials = credentialStore.get("node#" + input.getId());
-        if (credentials != null) {
-            nodeMetadataBuilder.credentials(LoginCredentials.fromCredentials(credentials));
-        } else if (node.getSshConfig() != null) {
-            SshConfig sshConfig = node.getSshConfig();
-            nodeMetadataBuilder.credentials(LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
-        }
-        return nodeMetadataBuilder.build();
-    }
+      Map<String, Object> config = machineConfig.load();
+      String hardwareId = config.get("hardwareId").toString();
+      Hardware hardware;
+      if (AutomaticHardwareIdSpec.isAutomaticId(hardwareId)) {
+         double cpus = Double.parseDouble(config.get("cpus").toString());
+         int memory = Integer.parseInt(config.get("memory").toString());
+         AutomaticHardwareIdSpec hardwareSpec = AutomaticHardwareIdSpec.automaticHardwareIdSpecBuilder(cpus, memory, Optional.<Float>absent());
+         hardware = new HardwareBuilder()
+               .id(hardwareSpec.toString())
+               .providerId(hardwareSpec.toString())
+               .processor(new Processor(cpus, 1.0))
+               .ram(memory)
+               .build();
+      } else {
+         hardware = hardwareSupplier.get().get(hardwareId);
+         if (hardware == null) {
+            throw new IllegalStateException("Unsupported hardwareId " + hardwareId + " for machine " + node.getMachine().getId());
+         }
+      }
+
+      Machine input = node.getMachine();
+      NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
+            .ids(input.getId())
+            .name(input.getName())
+            .group(input.getPath().getName())
+            .location(location)
+            .hardware(hardware)
+            .hostname(input.getName())
+            .status(toPortableNodeStatus.apply(input.getStatus()))
+            .loginPort(22)
+            .privateAddresses(node.getNetworks())
+            .publicAddresses(ImmutableList.<String> of()).hostname(node.getHostname());
+
+      // Credentials could be changed by AdminAccess script, check store first
+      Credentials credentials = credentialStore.get("node#" + input.getId());
+      if (credentials != null) {
+         nodeMetadataBuilder.credentials(LoginCredentials.fromCredentials(credentials));
+      } else if (node.getSshConfig() != null) {
+         SshConfig sshConfig = node.getSshConfig();
+         nodeMetadataBuilder.credentials(
+               LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
+      }
+      return nodeMetadataBuilder.build();
+   }
 
 }
