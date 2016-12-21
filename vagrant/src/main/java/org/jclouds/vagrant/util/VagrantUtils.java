@@ -27,13 +27,15 @@ import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
 
 public class VagrantUtils {
-   public static void deleteFolder(File folder) {
-      if (folder.isDirectory()) {
-         for (File sub : folder.listFiles()) {
+   public static void deleteFolder(File path) {
+      if (path.isDirectory()) {
+         for (File sub : path.listFiles()) {
             deleteFolder(sub);
          }
       }
-      folder.delete();
+      if (!path.delete()) {
+         throw new IllegalStateException("Can't delete " + path.getAbsolutePath());
+      }
    }
 
    public static void write(File file, String value) throws IOException {

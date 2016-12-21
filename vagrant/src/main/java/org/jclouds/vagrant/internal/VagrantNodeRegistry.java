@@ -24,6 +24,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.jclouds.vagrant.domain.VagrantNode;
 
+import com.google.inject.Singleton;
+
+@Singleton
 public class VagrantNodeRegistry {
    private static final long TERMINATED_NODES_EXPIRY_MS = TimeUnit.MINUTES.toMillis(5);
    private static final long VACUUM_PERIOD_MS = TimeUnit.SECONDS.toMillis(15);
@@ -67,11 +70,9 @@ public class VagrantNodeRegistry {
    private Map<String, VagrantNode> nodes = new ConcurrentHashMap<String, VagrantNode>();
    private DelayQueue<TerminatedNode> terminatedNodes = new DelayQueue<TerminatedNode>();
 
-   private VacuumVagrantNode vacuumVagrantNode;
    private volatile long lastVacuumMs;
 
-   public VagrantNodeRegistry(VacuumVagrantNode vacuumVagrantNode) {
-      this.vacuumVagrantNode = vacuumVagrantNode;
+   public VagrantNodeRegistry() {
    }
 
    public VagrantNode get(String id) {
@@ -84,7 +85,6 @@ public class VagrantNodeRegistry {
       if (System.currentTimeMillis() - lastVacuumMs > VACUUM_PERIOD_MS) {
          TerminatedNode terminated;
          while ((terminated = terminatedNodes.poll()) != null) {
-            vacuumVagrantNode.vacuum(terminated.node);
             nodes.remove(terminated.node.getMachine().getId());
          }
          lastVacuumMs = System.currentTimeMillis();

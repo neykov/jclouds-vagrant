@@ -36,15 +36,11 @@ import org.jclouds.vagrant.domain.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
-import org.jclouds.vagrant.internal.VacuumVagrantNode;
-import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.inject.Module;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
 import vagrant.api.domain.Box;
@@ -86,12 +82,6 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
    @SuppressWarnings("unchecked")
    private <T> Class<Function<T, T>> castIdentityFunction() {
       return (Class<Function<T, T>>)(Class<?>)IdentityFunction.class;
-   }
-   
-   @Provides
-   @Singleton
-   protected VagrantNodeRegistry provideVagrantNodeRegistry() {
-      return new VagrantNodeRegistry(new VacuumVagrantNode());
    }
 
 }

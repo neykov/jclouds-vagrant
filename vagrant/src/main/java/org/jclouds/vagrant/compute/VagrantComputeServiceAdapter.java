@@ -244,6 +244,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       node.setMachineState(null);
       getMachine(node).destroy(node.getMachine().getName());
       nodeRegistry.onTerminated(node);
+      VagrantUtils.deleteFolder(node.getMachine().getPath());
    }
 
    @Override
@@ -320,13 +321,17 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
    private String removeFromStart(String name, String group) {
-      String machineName;
       if (name.startsWith(group)) {
-         machineName = name.substring(group.length());
+         String machineName = name.substring(group.length());
+         // Can't pass names starting with dash on the command line
+         if (machineName.startsWith("-")) {
+            return machineName.substring(1);
+         } else {
+            return machineName;
+         }
       } else {
-         machineName = name;
+         return name;
       }
-      return machineName;
    }
 
 }
