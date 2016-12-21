@@ -284,8 +284,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
           .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
              @Override
              public Collection<VagrantNode> apply(File input) {
+                File machines = new File(input, "machines");
                 VagrantApi vagrant = Vagrant.forPath(input);
-                if (input.isDirectory() && vagrant.exists()) {
+                if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                    Collection<Machine> status = vagrant.status();
                    Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                    for (Machine m : status) {
