@@ -45,7 +45,6 @@ import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
-import org.jclouds.vagrant.domain.MachineName;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.util.MachineConfig;
@@ -93,33 +92,33 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public NodeAndInitialCredentials<VagrantNode> createNodeWithGroupEncodedIntoName(String group, String name, Template template) {
-      MachineName machineName = new MachineName(group, name);
-      VagrantApi vagrant = getMachine(machineName);
+      String machineName = removeFromStart(name, group);
 
       Machine newMachine = new Machine();
-      newMachine.setId(group + "/" + name);
-      newMachine.setName(name);
+      newMachine.setId(group + "/" + machineName);
+      newMachine.setName(machineName);
       newMachine.setStatus(MachineState.POWER_OFF);
-      newMachine.setPath(getMachinePath(machineName));
-
+      newMachine.setPath(new File(nodeContainer, group));
       VagrantNode node = new VagrantNode(newMachine);
 
       init(node, template);
 
       nodeRegistry.add(node);
 
+      VagrantApi vagrant = getMachine(node);
       return startMachine(vagrant, node);
    }
 
    private NodeAndInitialCredentials<VagrantNode> startMachine(VagrantApi vagrant, VagrantNode node) {
       Machine newMachine = node.getMachine();
 
-      vagrant.up(newMachine.getName());
+      String name = newMachine.getName();
+      vagrant.up(name);
 
-      SshConfig sshConfig = vagrant.sshConfig(newMachine.getName());
+      SshConfig sshConfig = vagrant.sshConfig(name);
       node.setSshConfig(sshConfig);
-      node.setNetworks(getNetworks(newMachine.getName(), vagrant));
-      node.setHostname(getHostname(newMachine.getName(), vagrant));
+      node.setNetworks(getNetworks(name, vagrant));
+      node.setHostname(getHostname(name, vagrant));
       newMachine.setStatus(MachineState.RUNNING);
 
       String privateKey;
@@ -160,7 +159,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          initMachineConfig(node, template);
       } catch (IOException e) {
          throw new IllegalStateException("Unable to initialize Vagrant configuration at " +
-               node.getMachine().getPath() + " for machine " + node.getMachine().getName(), e);
+               node.getMachine().getPath() + " for machine " + node.getMachine().getId(), e);
       }
    }
 
@@ -241,39 +240,41 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public void destroyNode(String id) {
-       VagrantNode node = nodeRegistry.get(id);
-       node.setMachineState(null);
-      MachineName machine = new MachineName(id);
-      getMachine(machine).destroy(machine.getName());
-      VagrantUtils.deleteFolder(getMachinePath(machine));
+      VagrantNode node = nodeRegistry.get(id);
+      node.setMachineState(null);
+      getMachine(node).destroy(node.getMachine().getName());
+      nodeRegistry.onTerminated(node);
    }
 
    @Override
    public void rebootNode(String id) {
-      MachineName machine = new MachineName(id);
+      VagrantNode node = nodeRegistry.get(id);
+      String name = node.getMachine().getName();
+      VagrantApi vagrant = getMachine(node);
       try {
-          getMachine(machine).halt(machine.getName());
+          vagrant.halt(name);
       } catch (IllegalStateException e) {
           logger.warn(e, "Failed graceful shutdown of machine " + id + " (for reboot). Will try to halt it forcefully instead.");
-          getMachine(machine).haltForced(machine.getName());
+          vagrant.haltForced(name);
       }
-      getMachine(machine).up(machine.getName());
+      vagrant.up(name);
    }
 
    @Override
    public void resumeNode(String id) {
-      MachineName machine = new MachineName(id);
-      getMachine(machine).resume(machine.getName());
       VagrantNode node = nodeRegistry.get(id);
+      String name = node.getMachine().getName();
+      VagrantApi vagrant = getMachine(node);
+      vagrant.resume(name);
       node.setMachineState(MachineState.RUNNING);
       node.getMachine().setStatus(MachineState.RUNNING);
    }
 
    @Override
    public void suspendNode(String id) {
-      MachineName machine = new MachineName(id);
-      getMachine(machine).suspend(machine.getName());
       VagrantNode node = nodeRegistry.get(id);
+      String name = node.getMachine().getName();
+      getMachine(node).suspend(name);
       node.setMachineState(MachineState.SAVED);
       node.getMachine().setStatus(MachineState.SAVED);
    }
@@ -313,13 +314,19 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       });
    }
 
-   private VagrantApi getMachine(MachineName machineName) {
-      File nodePath = getMachinePath(machineName);
+   private VagrantApi getMachine(VagrantNode node) {
+      File nodePath = node.getMachine().getPath();
       return Vagrant.forPath(nodePath);
    }
 
-   private File getMachinePath(MachineName machineName) {
-      return new File(nodeContainer, machineName.getGroup());
+   private String removeFromStart(String name, String group) {
+      String machineName;
+      if (name.startsWith(group)) {
+         machineName = name.substring(group.length());
+      } else {
+         machineName = name;
+      }
+      return machineName;
    }
 
 }
