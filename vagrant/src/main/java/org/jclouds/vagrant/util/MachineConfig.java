@@ -82,7 +82,9 @@ public class MachineConfig {
    public void save(Map<String, Object> config) {
       File parent = configPath.getParentFile();
       if (!parent.exists() && !parent.mkdirs()) {
-         throw new IllegalStateException("Failure created folder " + parent.getAbsolutePath());
+         if (!parent.exists()) {
+             throw new IllegalStateException("Failure creating folder " + parent.getAbsolutePath());
+         }
       }
 
       String output = Joiner.on("\n").withKeyValueSeparator(": ").join(config);
