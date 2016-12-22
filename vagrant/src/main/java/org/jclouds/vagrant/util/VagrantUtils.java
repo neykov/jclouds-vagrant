@@ -23,8 +23,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.jclouds.vagrant.domain.VagrantNode;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
+
+import vagrant.api.domain.Machine;
 
 public class VagrantUtils {
    public static void deleteFolder(File path) {
@@ -51,6 +55,16 @@ public class VagrantUtils {
             out.close();
          } finally {
             in.close();
+         }
+      }
+   }
+
+   public static void deleteFiles(File path, String filePattern) {
+      for (File f : path.listFiles()) {
+         if (f.getName().startsWith(filePattern)) {
+            if (!f.delete()) {
+               throw new IllegalStateException("Failed deleting machine file " + f.getAbsolutePath());
+            }
          }
       }
    }

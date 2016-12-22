@@ -21,7 +21,10 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -30,14 +33,20 @@ import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.strategy.PopulateDefaultLoginCredentialsForImageStrategy;
 import org.jclouds.domain.Credentials;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.javax.annotation.Nullable;
+import org.jclouds.logging.Logger;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.google.inject.Singleton;
 
 @Singleton
 public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCredentialsForImageStrategy {
+
+   @Resource
+   protected Logger logger = Logger.NULL;
 
     protected final LoginCredentials creds;
     protected final Map<String, Credentials> credentialStore;
@@ -66,23 +75,47 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
        } else {
           File boxPath = getImagePath(image);
           String config = readBoxConfig(boxPath);
-          LoginCredentials boxCreds = parseBoxCredentials(config);
-          if (boxCreds != null) {
-              return boxCreds;
-          } else {
-              // TODO pass default insecure_private_key and "vagrant" password
-              return LoginCredentials.builder().user("vagrant").build();
-          }
+          return parseBoxCredentials(boxPath, config);
        }
     }
 
-    private LoginCredentials parseBoxCredentials(String config) {
-        // TODO search for xxx.ssh.username = "custom_username"
-        // "vagrant" is the default username
-        return null;
+    private LoginCredentials parseBoxCredentials(File boxPath, String config) {
+       String username = getKey(config, ".ssh.username").or("vagrant");
+       Builder credBuilder = LoginCredentials.builder().user(username);
+       Optional<String> password = getKey(config, ".ssh.password");
+       if (password.isPresent()) {
+          credBuilder.password(password.get());
+       }
+       Optional<String> privateKeyPath = getKey(config, ".ssh.private_key_path");
+       if (privateKeyPath.isPresent()) {
+          File privateKey = new File(boxPath, privateKeyPath.get());
+          if (privateKey.exists()) {
+             try {
+               credBuilder.privateKey(Files.toString(privateKey, Charsets.UTF_8));
+            } catch (IOException e) {
+               throw new IllegalStateException("Failure reading private key file " +
+                     privateKey.getAbsolutePath() + " for box " + boxPath.getAbsolutePath());
+            }
+          } else {
+             logger.warn("Private key " + privateKeyPath.get() + " for box " +
+                   boxPath.getAbsolutePath() + " not found at " + privateKey.getAbsolutePath() + ". Ignoring.");
+          }
+       }
+       return credBuilder.build();
      }
 
-     private String readBoxConfig(File boxPath) {
+    private Optional<String> getKey(String config, String key) {
+       String keyQuoted = Pattern.quote(key);
+       String search = keyQuoted + "\\s*=\\s*\"(.*)\"";
+       Matcher matcher = Pattern.compile(search).matcher(config);
+       if (matcher.find()) {
+          return Optional.of(matcher.group(1));
+       } else {
+          return Optional.absent();
+       }
+    }
+
+   private String readBoxConfig(File boxPath) {
         if (!boxPath.exists()) return "";
         try {
            return Files.toString(new File(boxPath, "Vagrantfile"), Charsets.UTF_8);

@@ -24,12 +24,12 @@ Vagrant.configure(2) do |config|
         srv.vm.box = machine_config["box"]
         srv.vm.network "private_network", type: "dhcp"
         srv.vm.synced_folder '.', '/vagrant', disabled: true
-        srv.ssh.username = machine_config["username"]
-        srv.ssh.password = machine_config["password"]
-        srv.ssh.private_key_path = machine_config["private_key_path"]
+        srv.ssh.username = machine_config["username"] if machine_config.key?("username") 
+        srv.ssh.password = machine_config["password"] if machine_config.key?("password")
+        srv.ssh.private_key_path = machine_config["private_key_path"] if machine_config.key?("private_key_path")
         srv.vm.provider "virtualbox" do |v|
-           v.memory = machine_config["memory"]
-           v.cpus = machine_config["cpus"]
+           v.memory = machine_config["memory"] if machine_config.key?("memory")
+           v.cpus = machine_config["cpus"] if machine_config.key?("cpus")
            v.customize ["modifyvm", :id, "--nictype1", "virtio"]
         end
     end
