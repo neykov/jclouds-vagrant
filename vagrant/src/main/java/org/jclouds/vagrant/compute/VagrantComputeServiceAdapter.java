@@ -297,26 +297,28 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    @Override
    public Iterable<VagrantNode> listNodes() {
       return FluentIterable.from(Arrays.asList(nodeContainer.listFiles()))
-          .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
-             @Override
-             public Collection<VagrantNode> apply(File input) {
-                File machines = new File(input, "machines");
-                VagrantApi vagrant = Vagrant.forPath(input);
-                if (input.isDirectory() && machines.exists() && vagrant.exists()) {
-                   Collection<Machine> status = vagrant.status();
-                   Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
-                   for (Machine m : status) {
-                       VagrantNode n = nodeRegistry.get(m.getId());
-                       if (n != null) {
-                           nodes.add(n);
-                       }
-                   }
-                   return nodes;
-                } else {
-                   return ImmutableList.of();
-                }
-           }
-         });
+            .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
+               @Override
+               public Collection<VagrantNode> apply(File input) {
+                  File machines = new File(input, "machines");
+                  VagrantApi vagrant = Vagrant.forPath(input);
+                  if (input.isDirectory() && machines.exists() && vagrant.exists()) {
+                     Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
+                     for (File machine : machines.listFiles()) {
+                        if (machine.getName().endsWith(".yaml")) {
+                           String id = input.getName() + "/" + machine.getName().replace(".yaml", "");
+                           VagrantNode n = nodeRegistry.get(id);
+                           if (n != null) {
+                              nodes.add(n);
+                           }
+                        }
+                     }
+                     return nodes;
+                  } else {
+                     return ImmutableList.of();
+                  }
+               }
+            });
    }
 
    @Override
