@@ -244,7 +244,21 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       node.setMachineState(null);
       getMachine(node).destroy(node.getMachine().getName());
       nodeRegistry.onTerminated(node);
-      VagrantUtils.deleteFolder(node.getMachine().getPath());
+      deleteMachine(node);
+   }
+
+   private void deleteMachine(VagrantNode node) {
+      Machine machine = node.getMachine();
+      File nodeFolder = machine.getPath();
+      File machinesFolder = new File(nodeFolder, "machines");
+      String filePattern = machine.getName() + ".";
+      logger.debug("Deleting machine %s", machine.getId());
+      VagrantUtils.deleteFiles(machinesFolder, filePattern);
+      // No more machines in this group, remove everything
+      if (machinesFolder.list().length == 0) {
+         logger.debug("Machine %s is last in group, deleting Vagrant folder %s", machine.getId(), nodeFolder.getAbsolutePath());
+         VagrantUtils.deleteFolder(nodeFolder);
+      }
    }
 
    @Override
