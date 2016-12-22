@@ -90,9 +90,8 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
            }
            if (credentials.getOptionalPrivateKey().isPresent()) {
                Machine machine = node.getMachine();
-               File machinesPath = new File(machine.getPath(), "machines");
-               File privateKeyFile = new File(machinesPath, machine.getName() + "." + credentials.getUser() + ".key");
-               config.put("private_key_path", privateKeyFile.getAbsolutePath());
+               // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.
+               File privateKeyFile = new File(machine.getPath(), ".vagrant/machines/" + machine.getName() + "/virtualbox/private_key");
                try {
                   VagrantUtils.write(privateKeyFile, credentials.getOptionalPrivateKey().get());
                } catch (IOException e) {
