@@ -41,8 +41,6 @@ import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 
-import vagrant.api.domain.Machine;
-
 public class PersistVagrantCredentialsModule extends AbstractModule {
 
    static class RefreshCredentialsForNodeIfRanAdminAccess implements Function<NodeMetadata, NodeMetadata> {
@@ -89,9 +87,8 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
                config.put("password", credentials.getOptionalPassword().get());
            }
            if (credentials.getOptionalPrivateKey().isPresent()) {
-               Machine machine = node.getMachine();
                // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.
-               File privateKeyFile = new File(machine.getPath(), ".vagrant/machines/" + machine.getName() + "/virtualbox/private_key");
+               File privateKeyFile = new File(node.path(), ".vagrant/machines/" + node.name() + "/virtualbox/private_key");
                try {
                   VagrantUtils.write(privateKeyFile, credentials.getOptionalPrivateKey().get());
                } catch (IOException e) {

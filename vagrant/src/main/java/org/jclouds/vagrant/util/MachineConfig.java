@@ -41,11 +41,15 @@ public class MachineConfig {
 
    private File configPath;
 
-   public static MachineConfig newInstance(VagrantNode node) {
-      return new MachineConfig(node.getMachine().getPath(), node.getMachine().getName());
+   public static MachineConfig newInstance(File path, String name) {
+      return new MachineConfig(path, name);
    }
 
-   public MachineConfig(File path, String name) {
+   public static MachineConfig newInstance(VagrantNode node) {
+      return newInstance(node.path(), node.name());
+   }
+
+   protected MachineConfig(File path, String name) {
       this.configPath = new File(new File(path, CONFIG_FOLDER), name + ".yaml");
    }
 

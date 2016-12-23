@@ -85,14 +85,14 @@ public class VagrantNodeRegistry {
       if (System.currentTimeMillis() - lastVacuumMs > VACUUM_PERIOD_MS) {
          TerminatedNode terminated;
          while ((terminated = terminatedNodes.poll()) != null) {
-            nodes.remove(terminated.node.getMachine().getId());
+            nodes.remove(terminated.node.id());
          }
          lastVacuumMs = System.currentTimeMillis();
       }
    }
 
    public void add(VagrantNode node) {
-      nodes.put(node.getMachine().getId(), node);
+      nodes.put(node.id(), node);
    }
 
    public void onTerminated(VagrantNode node) {

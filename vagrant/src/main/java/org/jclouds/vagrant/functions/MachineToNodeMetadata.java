@@ -42,7 +42,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 
-import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
@@ -83,29 +82,28 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
       } else {
          hardware = hardwareSupplier.get().get(hardwareId);
          if (hardware == null) {
-            throw new IllegalStateException("Unsupported hardwareId " + hardwareId + " for machine " + node.getMachine().getId());
+            throw new IllegalStateException("Unsupported hardwareId " + hardwareId + " for machine " + node.id());
          }
       }
 
-      Machine input = node.getMachine();
       NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
-            .ids(input.getId())
-            .name(input.getName())
-            .group(input.getPath().getName())
+            .ids(node.id())
+            .name(node.name())
+            .group(node.path().getName())
             .location(location)
             .hardware(hardware)
-            .hostname(input.getName())
-            .status(toPortableNodeStatus.apply(input.getStatus()))
+            .hostname(node.name())
+            .status(toPortableNodeStatus.apply(node.machineState()))
             .loginPort(22)
-            .privateAddresses(node.getNetworks())
-            .publicAddresses(ImmutableList.<String> of()).hostname(node.getHostname());
+            .privateAddresses(node.networks())
+            .publicAddresses(ImmutableList.<String> of()).hostname(node.hostname());
 
       // Credentials could be changed by AdminAccess script, check store first
-      Credentials credentials = credentialStore.get("node#" + input.getId());
+      Credentials credentials = credentialStore.get("node#" + node.id());
       if (credentials != null) {
          nodeMetadataBuilder.credentials(LoginCredentials.fromCredentials(credentials));
-      } else if (node.getSshConfig() != null) {
-         SshConfig sshConfig = node.getSshConfig();
+      } else if (node.sshConfig() != null) {
+         SshConfig sshConfig = node.sshConfig();
          nodeMetadataBuilder.credentials(
                LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
       }

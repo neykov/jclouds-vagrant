@@ -16,59 +16,52 @@
  */
 package org.jclouds.vagrant.domain;
 
+import java.io.File;
 import java.util.Collection;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.auto.value.AutoValue;
 
-import vagrant.api.domain.Machine;
 import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
-public class VagrantNode {
-    private final Machine machine;
-    private SshConfig sshConfig;
-    private Collection<String> networks = ImmutableSet.of();
-    private MachineState machineState = MachineState.POWER_OFF;
-    private String hostname;
+@AutoValue
+public abstract class VagrantNode {
 
-    public VagrantNode(Machine machine) {
-        this.machine = machine;
-    }
+   private volatile MachineState machineState = MachineState.POWER_OFF;
 
-    public void setMachineState(MachineState state) {
-        this.machineState = state;
-    }
+   public abstract File path();
 
-    public void setSshConfig(SshConfig sshConfig) {
-        this.sshConfig = sshConfig;
-    }
+   public abstract String id();
 
-    public void setNetworks(Collection<String> networks) {
-        this.networks = networks;
-    }
+   public abstract String name();
 
-    public Machine getMachine() {
-        return machine;
-    }
+   public abstract SshConfig sshConfig();
 
-    public SshConfig getSshConfig() {
-        return sshConfig;
-    }
+   public abstract Collection<String> networks();
 
-    public Collection<String> getNetworks() {
-        return networks;
-    }
+   public abstract String hostname();
 
-    public MachineState getMachineState() {
-        return machineState;
-    }
+   public static Builder builder() {
+      return new AutoValue_VagrantNode.Builder();
+   }
 
-    public String getHostname() {
-        return hostname;
-    }
+   @AutoValue.Builder
+   public abstract static class Builder {
+      public abstract Builder setPath(File path);
+      public abstract Builder setId(String id);
+      public abstract Builder setName(String name);
+      public abstract Builder setSshConfig(SshConfig sshConfig);
+      public abstract Builder setNetworks(Collection<String> networks);
+      public abstract Builder setHostname(String hostname);
+      public abstract VagrantNode build();
+   }
 
-    public void setHostname(String hostname) {
-        this.hostname = hostname;
-    }
+   public MachineState machineState() {
+      return machineState;
+   }
+
+   public void setMachineState(MachineState machineState) {
+      this.machineState = machineState;
+   }
 
 }
