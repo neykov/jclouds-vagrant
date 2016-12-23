@@ -117,7 +117,6 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
             .setPath(path)
             .setId(id)
             .setName(name)
-            .setSshConfig(sshConfig)
             .setNetworks(getNetworks(name, vagrant))
             .setHostname(getHostname(name, vagrant))
             .build();
@@ -134,6 +133,8 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
             .user(sshConfig.getUser())
             .privateKey(privateKey)
             .build();
+      // PrioritizeCredentialsFromTemplate will overwrite loginCredentials with image credentials
+      // AdaptingComputeServiceStrategies saves the merged credentials in credentialStore
       return new NodeAndInitialCredentials<VagrantNode>(node, node.id(), loginCredentials);
    }
 

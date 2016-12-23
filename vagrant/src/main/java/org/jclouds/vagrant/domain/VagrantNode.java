@@ -22,7 +22,6 @@ import java.util.Collection;
 import com.google.auto.value.AutoValue;
 
 import vagrant.api.domain.MachineState;
-import vagrant.api.domain.SshConfig;
 
 @AutoValue
 public abstract class VagrantNode {
@@ -34,8 +33,6 @@ public abstract class VagrantNode {
    public abstract String id();
 
    public abstract String name();
-
-   public abstract SshConfig sshConfig();
 
    public abstract Collection<String> networks();
 
@@ -50,7 +47,6 @@ public abstract class VagrantNode {
       public abstract Builder setPath(File path);
       public abstract Builder setId(String id);
       public abstract Builder setName(String name);
-      public abstract Builder setSshConfig(SshConfig sshConfig);
       public abstract Builder setNetworks(Collection<String> networks);
       public abstract Builder setHostname(String hostname);
       public abstract VagrantNode build();

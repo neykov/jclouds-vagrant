@@ -29,9 +29,7 @@ import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.NodeMetadataBuilder;
 import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.util.AutomaticHardwareIdSpec;
-import org.jclouds.domain.Credentials;
 import org.jclouds.domain.Location;
-import org.jclouds.domain.LoginCredentials;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
@@ -44,23 +42,19 @@ import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 
 import vagrant.api.domain.MachineState;
-import vagrant.api.domain.SshConfig;
 
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
    private final Function<MachineState, Status> toPortableNodeStatus;
    private final Location location;
-   private final Map<String, Credentials> credentialStore;
    private final Supplier<Map<String, Hardware>> hardwareSupplier;
 
    @Inject
    public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
          @Memoized Supplier<Set<? extends Location>> locations,
-         Map<String, Credentials> credentialStore,
          Supplier<Map<String, Hardware>> hardwareSupplier) {
       this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
       this.location = Iterables.getOnlyElement(checkNotNull(locations, "locations").get());
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
-      this.credentialStore = checkNotNull(credentialStore, "credentialStore");
    }
 
    @Override
@@ -98,16 +92,8 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
             .loginPort(22)
             .privateAddresses(node.networks())
             .publicAddresses(ImmutableList.<String> of()).hostname(node.hostname());
-
-      // Credentials could be changed by AdminAccess script, check store first
-      Credentials credentials = credentialStore.get("node#" + node.id());
-      if (credentials != null) {
-         nodeMetadataBuilder.credentials(LoginCredentials.fromCredentials(credentials));
-      } else if (node.sshConfig() != null) {
-         SshConfig sshConfig = node.sshConfig();
-         nodeMetadataBuilder.credentials(
-               LoginCredentials.builder().user(sshConfig.getUser()).privateKey(sshConfig.getIdentityFile()).build());
-      }
+      // Credentials fetched from cache from AdaptingComputeServiceStrategies.addLoginCredentials.
+      // Cache already initialized just after creating the node.
       return nodeMetadataBuilder.build();
    }
 
