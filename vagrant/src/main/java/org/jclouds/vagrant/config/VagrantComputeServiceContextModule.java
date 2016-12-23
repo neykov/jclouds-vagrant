@@ -32,11 +32,11 @@ import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
 import org.jclouds.vagrant.compute.VagrantComputeServiceAdapter;
 import org.jclouds.vagrant.domain.VagrantNode;
-import org.jclouds.vagrant.domain.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
 import org.jclouds.vagrant.internal.VagrantIOListener;
+import org.jclouds.vagrant.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 
 import com.google.common.base.Function;
