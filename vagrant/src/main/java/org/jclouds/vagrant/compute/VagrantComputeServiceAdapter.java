@@ -48,6 +48,7 @@ import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.internal.VagrantIOListener;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
 
@@ -73,30 +74,30 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    @Resource
    protected Logger logger = Logger.NULL;
 
-   private final File nodeContainer;
+   private final File home;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
    private final Supplier<Map<String, Hardware>> hardwareSupplier;
    private final VagrantIOListener ioListener;
 
    @Inject
-   VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer,
+   VagrantComputeServiceAdapter(@Named(VagrantConstants.VAGRANT_HOME) String home,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
          VagrantIOListener ioListener,
          Supplier<Map<String, Hardware>> hardwareSupplier) {
-      this.nodeContainer = new File(checkNotNull(nodeContainer, "nodeContainer"));
+      this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
       this.ioListener = ioListener;
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
-      this.nodeContainer.mkdirs();
+      this.home.mkdirs();
    }
 
    @Override
    public NodeAndInitialCredentials<VagrantNode> createNodeWithGroupEncodedIntoName(String group, String name, Template template) {
       String machineName = removeFromStart(name, group);
-      File nodePath = new File(nodeContainer, group);
+      File nodePath = new File(home, group);
 
       init(nodePath, machineName, template);
 
@@ -294,7 +295,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<VagrantNode> listNodes() {
-      return FluentIterable.from(Arrays.asList(nodeContainer.listFiles()))
+      return FluentIterable.from(Arrays.asList(home.listFiles()))
             .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
                @Override
                public Collection<VagrantNode> apply(File input) {

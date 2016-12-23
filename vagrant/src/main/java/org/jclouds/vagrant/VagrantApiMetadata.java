@@ -24,6 +24,7 @@ import org.jclouds.apis.internal.BaseApiMetadata;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.config.ComputeServiceProperties;
 import org.jclouds.vagrant.config.VagrantComputeServiceContextModule;
+import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.auto.service.AutoService;
 
@@ -61,7 +62,7 @@ public class VagrantApiMetadata extends BaseApiMetadata {
 
     private Properties defaultProperties() {
        Properties defaultProperties = BaseApiMetadata.defaultProperties();
-       defaultProperties.setProperty("vagrant.container-root", System.getProperty("user.home") + "/.jagrant/machines");
+       defaultProperties.setProperty(VagrantConstants.VAGRANT_HOME, System.getProperty("user.home") + "/.jclouds/vagrant");
        defaultProperties.put(ComputeServiceProperties.TEMPLATE, "osFamily=UBUNTU");
        return defaultProperties;
     }
