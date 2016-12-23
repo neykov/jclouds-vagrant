@@ -46,6 +46,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.internal.VagrantIOListener;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
@@ -68,23 +69,26 @@ import vagrant.api.domain.SshConfig;
 
 public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
    private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
-   
+
    @Resource
    protected Logger logger = Logger.NULL;
-   
+
    private final File nodeContainer;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
    private final Supplier<Map<String, Hardware>> hardwareSupplier;
+   private final VagrantIOListener ioListener;
 
    @Inject
    VagrantComputeServiceAdapter(@Named("vagrant.container-root") String nodeContainer,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
+         VagrantIOListener ioListener,
          Supplier<Map<String, Hardware>> hardwareSupplier) {
       this.nodeContainer = new File(checkNotNull(nodeContainer, "nodeContainer"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
+      this.ioListener = ioListener;
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.nodeContainer.mkdirs();
    }
@@ -103,7 +107,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name) {
 
-      VagrantApi vagrant = Vagrant.forPath(path);
+      VagrantApi vagrant = Vagrant.forPath(path, ioListener);
       vagrant.up(name);
 
       SshConfig sshConfig = vagrant.sshConfig(name);
@@ -200,7 +204,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Box> listImages() {
-      return Vagrant.forPath(new File(".")).box().list();
+      return Vagrant.forPath(new File("."), ioListener).box().list();
    }
 
    @Override
@@ -295,7 +299,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
                @Override
                public Collection<VagrantNode> apply(File input) {
                   File machines = new File(input, "machines");
-                  VagrantApi vagrant = Vagrant.forPath(input);
+                  VagrantApi vagrant = Vagrant.forPath(input, ioListener);
                   if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                      Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                      for (File machine : machines.listFiles()) {
@@ -327,7 +331,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private VagrantApi getMachine(VagrantNode node) {
       File nodePath = node.path();
-      return Vagrant.forPath(nodePath);
+      return Vagrant.forPath(nodePath, ioListener);
    }
 
    private String removeFromStart(String name, String group) {

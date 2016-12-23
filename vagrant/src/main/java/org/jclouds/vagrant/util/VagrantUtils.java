@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.jclouds.util.Closeables2;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
 
@@ -47,11 +49,8 @@ public class VagrantUtils {
       try {
          ByteStreams.copy(in, out);
       } finally {
-         try {
-            out.close();
-         } finally {
-            in.close();
-         }
+         Closeables2.closeQuietly(out);
+         Closeables2.closeQuietly(in);
       }
    }
 

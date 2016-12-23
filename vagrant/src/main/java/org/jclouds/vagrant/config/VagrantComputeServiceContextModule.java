@@ -36,13 +36,16 @@ import org.jclouds.vagrant.domain.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
+import org.jclouds.vagrant.internal.VagrantIOListener;
 import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.inject.Module;
+import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
+import vagrant.api.CommandIOListener;
 import vagrant.api.domain.Box;
 import vagrant.api.domain.MachineState;
 
@@ -67,6 +70,7 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       }).to(this.<Location>castIdentityFunction());
       bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
       bind(TemplateBuilderImpl.class).to(ArbitraryCpuRamTemplateBuilderImpl.class);
+      bind(CommandIOListener.class).to(VagrantIOListener.class).in(Singleton.class);
    }
 
    @Override

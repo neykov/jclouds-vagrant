@@ -28,9 +28,8 @@ import java.io.Reader;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.jclouds.util.Closeables2;
 import org.jclouds.vagrant.domain.VagrantNode;
 
 import com.google.common.base.Charsets;
@@ -69,10 +68,7 @@ public class MachineConfig {
       } catch (IOException e) {
          throw new IllegalStateException("Failed loading machine config " + configPath.getAbsolutePath(), e);
       } finally {
-         try {
-            in.close();
-         } catch (IOException e) {
-         }
+         Closeables2.closeQuietly(in);
       }
       for (String key : yaml.stringPropertyNames()) {
          config.put(key, yaml.getProperty(key));
@@ -103,14 +99,10 @@ public class MachineConfig {
       } catch (IOException e) {
          throw new IllegalStateException("Failed writing to machine config file " + configPath.getAbsolutePath(), e);
       } finally {
-         try {
-            if (out != null) {
-               out.close();
-            } else if (fileOut != null) {
-               fileOut.close();
-            }
-         } catch (IOException e) {
-            Logger.getAnonymousLogger().log(Level.WARNING, "Failure closing machine config file " + configPath.getAbsolutePath(), e);
+         if (out != null) {
+            Closeables2.closeQuietly(out);
+         } else if (fileOut != null) {
+            Closeables2.closeQuietly(fileOut);
          }
       }
    }
