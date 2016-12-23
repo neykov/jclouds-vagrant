@@ -36,6 +36,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
+import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
@@ -80,7 +81,7 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
     }
 
     private LoginCredentials parseBoxCredentials(File boxPath, String config) {
-       String username = getKey(config, ".ssh.username").or("vagrant");
+       String username = getKey(config, ".ssh.username").or(VagrantConstants.DEFAULT_USERNAME);
        Builder credBuilder = LoginCredentials.builder().user(username);
        Optional<String> password = getKey(config, ".ssh.password");
        if (password.isPresent()) {
@@ -118,27 +119,27 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
    private String readBoxConfig(File boxPath) {
         if (!boxPath.exists()) return "";
         try {
-           return Files.toString(new File(boxPath, "Vagrantfile"), Charsets.UTF_8);
+           return Files.toString(new File(boxPath, VagrantConstants.VAGRANTFILE), Charsets.UTF_8);
         } catch (IOException e) {
            throw new RuntimeException(e);
         }
      }
      private File getImagePath(Image image) {
-        File boxes = new File(getVagrantHome(), "boxes");
+        File boxes = new File(getVagrantHome(), VagrantConstants.VAGRANT_BOXES_SUBFOLDER);
         File boxPath = new File(boxes, getPathName(image));
         File versionPath = new File(boxPath, image.getVersion());
         File providerPath = new File(versionPath, image.getUserMetadata().get("provider"));
         return providerPath;
      }
      private String getPathName(Image image) {
-        return image.getName().replace("/", "-VAGRANTSLASH-");
+        return image.getName().replace("/", VagrantConstants.ESCAPE_SLASH);
      }
      private File getVagrantHome() {
-        String home = System.getProperty("VAGRANT_HOME");
+        String home = System.getProperty(VagrantConstants.ENV_VAGRANT_HOME);
         if (home != null) {
            return new File(home);
         } else {
-           return new File(System.getProperty("user.home"), ".vagrant.d");
+           return new File(System.getProperty("user.home"), VagrantConstants.VAGRANT_HOME_DEFAULT);
         }
      }
 }

@@ -33,6 +33,7 @@ import org.jclouds.domain.Credentials;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
 
 import com.google.common.base.Function;
@@ -59,7 +60,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
       this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
       this.location = Iterables.getOnlyElement(checkNotNull(locations, "locations").get());
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
-      this.credentialStore = credentialStore;
+      this.credentialStore = checkNotNull(credentialStore, "credentialStore");
    }
 
    @Override
@@ -67,11 +68,11 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
       MachineConfig machineConfig = MachineConfig.newInstance(node);
 
       Map<String, Object> config = machineConfig.load();
-      String hardwareId = config.get("hardwareId").toString();
+      String hardwareId = config.get(VagrantConstants.CONFIG_HARDWARE_ID).toString();
       Hardware hardware;
       if (AutomaticHardwareIdSpec.isAutomaticId(hardwareId)) {
-         double cpus = Double.parseDouble(config.get("cpus").toString());
-         int memory = Integer.parseInt(config.get("memory").toString());
+         double cpus = Double.parseDouble(config.get(VagrantConstants.CONFIG_CPUS).toString());
+         int memory = Integer.parseInt(config.get(VagrantConstants.CONFIG_MEMORY).toString());
          AutomaticHardwareIdSpec hardwareSpec = AutomaticHardwareIdSpec.automaticHardwareIdSpecBuilder(cpus, memory, Optional.<Float>absent());
          hardware = new HardwareBuilder()
                .id(hardwareSpec.toString())

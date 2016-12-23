@@ -30,6 +30,7 @@ import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.functions.CredentialsFromAdminAccess;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
 
@@ -80,11 +81,10 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
            MachineConfig machineConfig = MachineConfig.newInstance(node);
            Map<String, Object> config = machineConfig.load();
 
-           config.put("username", credentials.getUser());
-           config.remove("password");
-           config.remove("private_key_path");
+           config.put(VagrantConstants.CONFIG_USERNAME, credentials.getUser());
+           config.remove(VagrantConstants.CONFIG_PASSWORD);
            if (credentials.getOptionalPassword().isPresent()) {
-               config.put("password", credentials.getOptionalPassword().get());
+               config.put(VagrantConstants.CONFIG_PASSWORD, credentials.getOptionalPassword().get());
            }
            if (credentials.getOptionalPrivateKey().isPresent()) {
                // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.

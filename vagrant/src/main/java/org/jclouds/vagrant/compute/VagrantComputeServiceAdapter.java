@@ -167,7 +167,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private void writeVagrantfile(File path) throws IOException {
       path.mkdirs();
-      VagrantUtils.write(new File(path, "Vagrantfile"), getClass().getResourceAsStream("/Vagrantfile"));
+      VagrantUtils.write(
+            new File(path, VagrantConstants.VAGRANTFILE),
+            getClass().getClassLoader().getResourceAsStream(VagrantConstants.VAGRANTFILE));
    }
 
    private void initMachineConfig(File path, String name, Template template) {
@@ -184,10 +186,10 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          }
       }
       config.save(ImmutableMap.<String, Object>of(
-            "box", template.getImage().getId(),
-            "hardwareId", template.getHardware().getId(),
-            "memory", Integer.toString(template.getHardware().getRam()),
-            "cpus", Integer.toString(countProcessors(template))));
+            VagrantConstants.CONFIG_BOX, template.getImage().getId(),
+            VagrantConstants.CONFIG_HARDWARE_ID, template.getHardware().getId(),
+            VagrantConstants.CONFIG_MEMORY, Integer.toString(template.getHardware().getRam()),
+            VagrantConstants.CONFIG_CPUS, Integer.toString(countProcessors(template))));
    }
 
    private int countProcessors(Template template) {
@@ -251,7 +253,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private void deleteMachine(VagrantNode node) {
       File nodeFolder = node.path();
-      File machinesFolder = new File(nodeFolder, "machines");
+      File machinesFolder = new File(nodeFolder, VagrantConstants.MACHINES_CONFIG_SUBFOLDER);
       String filePattern = node.name() + ".";
       logger.debug("Deleting machine %s", node.id());
       VagrantUtils.deleteFiles(machinesFolder, filePattern);
@@ -299,13 +301,13 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
             .transformAndConcat(new Function<File, Collection<VagrantNode>>() {
                @Override
                public Collection<VagrantNode> apply(File input) {
-                  File machines = new File(input, "machines");
+                  File machines = new File(input, VagrantConstants.MACHINES_CONFIG_SUBFOLDER);
                   VagrantApi vagrant = Vagrant.forPath(input, ioListener);
                   if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                      Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                      for (File machine : machines.listFiles()) {
-                        if (machine.getName().endsWith(".yaml")) {
-                           String id = input.getName() + "/" + machine.getName().replace(".yaml", "");
+                        if (machine.getName().endsWith(VagrantConstants.MACHINES_CONFIG_EXTENSION)) {
+                           String id = input.getName() + "/" + machine.getName().replace(VagrantConstants.MACHINES_CONFIG_EXTENSION, "");
                            VagrantNode n = nodeRegistry.get(id);
                            if (n != null) {
                               nodes.add(n);

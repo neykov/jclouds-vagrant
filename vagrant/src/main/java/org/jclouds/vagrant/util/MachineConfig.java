@@ -31,13 +31,12 @@ import java.util.Properties;
 
 import org.jclouds.util.Closeables2;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 
 public class MachineConfig {
-   private static final String CONFIG_FOLDER = "machines";
-
    private File configPath;
 
    public static MachineConfig newInstance(File path, String name) {
@@ -49,7 +48,7 @@ public class MachineConfig {
    }
 
    protected MachineConfig(File path, String name) {
-      this.configPath = new File(new File(path, CONFIG_FOLDER), name + ".yaml");
+      this.configPath = new File(new File(path, VagrantConstants.MACHINES_CONFIG_SUBFOLDER), name + ".yaml");
    }
 
    public Map<String, Object> load() {
