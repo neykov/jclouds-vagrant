@@ -37,13 +37,13 @@ public class VagrantHardwareSupplier implements Supplier<Map<String, Hardware>> 
 
    private static Hardware hardware(String name, int ram, int cores) {
       return new HardwareBuilder()
-              .ids(name)
-              .hypervisor("VirtualBox")
-              .name(name)
-              .processor(new Processor(cores, 1))
-              .ram(ram)
-              .volume(new VolumeBuilder().bootDevice(true).durable(true).type(Type.LOCAL).build())
-              .build();
+            .ids(name)
+            .hypervisor("VirtualBox")
+            .name(name)
+            .processor(new Processor(cores, 1))
+            .ram(ram)
+            .volume(new VolumeBuilder().bootDevice(true).durable(true).type(Type.LOCAL).build())
+            .build();
    }
 
    @Override

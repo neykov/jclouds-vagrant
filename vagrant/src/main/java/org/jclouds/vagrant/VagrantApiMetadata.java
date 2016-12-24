@@ -60,12 +60,12 @@ public class VagrantApiMetadata extends BaseApiMetadata {
          .defaultModule(VagrantComputeServiceContextModule.class);
       }
 
-    private Properties defaultProperties() {
-       Properties defaultProperties = BaseApiMetadata.defaultProperties();
-       defaultProperties.setProperty(VagrantConstants.VAGRANT_HOME, System.getProperty("user.home") + "/.jclouds/vagrant");
-       defaultProperties.put(ComputeServiceProperties.TEMPLATE, "osFamily=UBUNTU");
-       return defaultProperties;
-    }
+      private Properties defaultProperties() {
+         Properties defaultProperties = BaseApiMetadata.defaultProperties();
+         defaultProperties.setProperty(VagrantConstants.VAGRANT_HOME, System.getProperty("user.home") + "/.jclouds/vagrant");
+         defaultProperties.put(ComputeServiceProperties.TEMPLATE, "osFamily=UBUNTU");
+         return defaultProperties;
+      }
 
       @Override
       public ApiMetadata build() {

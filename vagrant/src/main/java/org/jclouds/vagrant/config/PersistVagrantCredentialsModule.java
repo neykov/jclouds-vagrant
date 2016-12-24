@@ -59,81 +59,81 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
          this.statement = statement;
       }
 
-        @Override
-        public NodeMetadata apply(NodeMetadata input) {
-           if (statement == null)
-              return input;
-           Credentials credentials = CredentialsFromAdminAccess.INSTANCE.apply(statement);
-           if (credentials != null) {
-              LoginCredentials creds = LoginCredentials.fromCredentials(credentials);
-              input = NodeMetadataBuilder.fromNodeMetadata(input).credentials(creds).build();
-              credentialStore.put("node#" + input.getId(), input.getCredentials());
-              updateMachine(input.getId(), creds);
-           }
-           return input;
-        }
+      @Override
+      public NodeMetadata apply(NodeMetadata input) {
+         if (statement == null)
+            return input;
+         Credentials credentials = CredentialsFromAdminAccess.INSTANCE.apply(statement);
+         if (credentials != null) {
+            LoginCredentials creds = LoginCredentials.fromCredentials(credentials);
+            input = NodeMetadataBuilder.fromNodeMetadata(input).credentials(creds).build();
+            credentialStore.put("node#" + input.getId(), input.getCredentials());
+            updateMachine(input.getId(), creds);
+         }
+         return input;
+      }
 
-        protected void updateMachine(String id, LoginCredentials credentials) {
-           VagrantNode node = vagrantNodeRegistry.get(id);
-           if (node == null) {
-              throw new IllegalStateException("Updating node credentials failed because node " + id + " not found.");
-           }
-           MachineConfig machineConfig = MachineConfig.newInstance(node);
-           Map<String, Object> config = machineConfig.load();
+      protected void updateMachine(String id, LoginCredentials credentials) {
+         VagrantNode node = vagrantNodeRegistry.get(id);
+         if (node == null) {
+            throw new IllegalStateException("Updating node credentials failed because node " + id + " not found.");
+         }
+         MachineConfig machineConfig = MachineConfig.newInstance(node);
+         Map<String, Object> config = machineConfig.load();
 
-           config.put(VagrantConstants.CONFIG_USERNAME, credentials.getUser());
-           config.remove(VagrantConstants.CONFIG_PASSWORD);
-           if (credentials.getOptionalPassword().isPresent()) {
-               config.put(VagrantConstants.CONFIG_PASSWORD, credentials.getOptionalPassword().get());
-           }
-           if (credentials.getOptionalPrivateKey().isPresent()) {
-               // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.
-               File privateKeyFile = new File(node.path(), ".vagrant/machines/" + node.name() + "/virtualbox/private_key");
-               try {
-                  VagrantUtils.write(privateKeyFile, credentials.getOptionalPrivateKey().get());
-               } catch (IOException e) {
-                  throw new IllegalStateException("Failure updating credentials for " + id +
-                        ". Can't save private key to " + privateKeyFile.getAbsolutePath(), e);
-               }
-           }
+         config.put(VagrantConstants.CONFIG_USERNAME, credentials.getUser());
+         config.remove(VagrantConstants.CONFIG_PASSWORD);
+         if (credentials.getOptionalPassword().isPresent()) {
+            config.put(VagrantConstants.CONFIG_PASSWORD, credentials.getOptionalPassword().get());
+         }
+         if (credentials.getOptionalPrivateKey().isPresent()) {
+            // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.
+            File privateKeyFile = new File(node.path(), ".vagrant/machines/" + node.name() + "/virtualbox/private_key");
+            try {
+               VagrantUtils.write(privateKeyFile, credentials.getOptionalPrivateKey().get());
+            } catch (IOException e) {
+               throw new IllegalStateException("Failure updating credentials for " + id +
+                     ". Can't save private key to " + privateKeyFile.getAbsolutePath(), e);
+            }
+         }
 
-           machineConfig.save(config);
-        }
-     }
+         machineConfig.save(config);
+      }
+   }
 
-     static class RefreshCredentialsForNode extends RefreshCredentialsForNodeIfRanAdminAccess {
+   static class RefreshCredentialsForNode extends RefreshCredentialsForNodeIfRanAdminAccess {
 
-        @Inject
-        RefreshCredentialsForNode(
+      @Inject
+      RefreshCredentialsForNode(
             VagrantNodeRegistry vagrantNodeRegistry,
             Map<String, Credentials> credentialStore,
             @Assisted @Nullable Statement statement) {
-           super(vagrantNodeRegistry, credentialStore, statement);
-        }
+         super(vagrantNodeRegistry, credentialStore, statement);
+      }
 
-        @Override
-        public NodeMetadata apply(NodeMetadata input) {
-           input = super.apply(input);
-           if (input.getCredentials() != null) {
-              credentialStore.put("node#" + input.getId(), input.getCredentials());
-              updateMachine(input.getId(), input.getCredentials());
-           }
-           return input;
-        }
+      @Override
+      public NodeMetadata apply(NodeMetadata input) {
+         input = super.apply(input);
+         if (input.getCredentials() != null) {
+            credentialStore.put("node#" + input.getId(), input.getCredentials());
+            updateMachine(input.getId(), input.getCredentials());
+         }
+         return input;
+      }
 
-     }
+   }
 
 
-    @Override
-    protected void configure() {
-       install(new FactoryModuleBuilder()
-             .implement(new TypeLiteral<Function<NodeMetadata, NodeMetadata>>() {},
-                     Names.named("ifAdminAccess"),
-                     RefreshCredentialsForNodeIfRanAdminAccess.class)
-             .implement(new TypeLiteral<Function<NodeMetadata, NodeMetadata>>() {},
-                     Names.named("always"),
-                     RefreshCredentialsForNode.class)
-             .build(PersistNodeCredentials.class));
-    }
+   @Override
+   protected void configure() {
+      install(new FactoryModuleBuilder()
+            .implement(new TypeLiteral<Function<NodeMetadata, NodeMetadata>>() {},
+                  Names.named("ifAdminAccess"),
+                  RefreshCredentialsForNodeIfRanAdminAccess.class)
+            .implement(new TypeLiteral<Function<NodeMetadata, NodeMetadata>>() {},
+                  Names.named("always"),
+                  RefreshCredentialsForNode.class)
+            .build(PersistNodeCredentials.class));
+   }
 
 }

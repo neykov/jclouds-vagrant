@@ -77,9 +77,9 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
    protected void install(Module module) {
       // override PersistNodeCredentialsModule bindings, any better way to do it?
       if (module instanceof PersistNodeCredentialsModule) {
-          super.install(new PersistVagrantCredentialsModule());
+         super.install(new PersistVagrantCredentialsModule());
       } else {
-          super.install(module);
+         super.install(module);
       }
    }
 

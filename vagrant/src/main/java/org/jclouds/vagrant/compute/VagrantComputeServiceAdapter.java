@@ -189,7 +189,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
             VagrantConstants.DELIMITER_HOSTNAME_START,
             VagrantConstants.DELIMITER_HOSTNAME_END);
    }
-   
+
    private String getDelimitedString(String value, String delimStart, String delimEnd) {
       int startPos = value.indexOf(delimStart);
       int endPos = value.indexOf(delimEnd);
@@ -243,7 +243,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private int countProcessors(Template template) {
       int cnt = 0;
       for (Processor p : template.getHardware().getProcessors()) {
-          cnt += p.getCores();
+         cnt += p.getCores();
       }
       return cnt;
    }
@@ -262,18 +262,18 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    public Box getImage(final String id) {
       return Iterables.find(listImages(),
             new Predicate<Box>() {
-               @Override
-               public boolean apply(Box input) {
-                  return id.equals(input.getName());
-               }
-            }, null);
+         @Override
+         public boolean apply(Box input) {
+            return id.equals(input.getName());
+         }
+      }, null);
    }
 
    @Override
    public Iterable<Location> listLocations() {
       Location provider = Iterables.getOnlyElement(locationSupplier.get());
       return ImmutableList.of(
-              new LocationBuilder().id("localhost").description("localhost").parent(provider).scope(LocationScope.HOST).build());
+            new LocationBuilder().id("localhost").description("localhost").parent(provider).scope(LocationScope.HOST).build());
    }
 
    @Override
@@ -318,10 +318,10 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       String name = node.name();
       VagrantApi vagrant = getMachine(node);
       try {
-          vagrant.halt(name);
+         vagrant.halt(name);
       } catch (IllegalStateException e) {
-          logger.warn(e, "Failed graceful shutdown of machine " + id + " (for reboot). Will try to halt it forcefully instead.");
-          vagrant.haltForced(name);
+         logger.warn(e, "Failed graceful shutdown of machine " + id + " (for reboot). Will try to halt it forcefully instead.");
+         vagrant.haltForced(name);
       }
       vagrant.up(name);
    }

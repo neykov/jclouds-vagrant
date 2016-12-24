@@ -34,7 +34,7 @@ public final class VagrantConstants {
    public static final String DELIMITER_NETWORKS_END = "================= Networks end ===================";
    public static final String DELIMITER_HOSTNAME_START = "================= Hostname start ==========================";
    public static final String DELIMITER_HOSTNAME_END = "================= Hostname end ============================";
-   
+
    // Vagrantfile config
    public static final String KEY_VM_GUEST = ".vm.guest";
    public static final String VM_GUEST_WINDOWS = ":windows";

@@ -82,7 +82,7 @@ public class MachineConfig {
       File parent = configPath.getParentFile();
       if (!parent.exists() && !parent.mkdirs()) {
          if (!parent.exists()) {
-             throw new IllegalStateException("Failure creating folder " + parent.getAbsolutePath());
+            throw new IllegalStateException("Failure creating folder " + parent.getAbsolutePath());
          }
       }
 

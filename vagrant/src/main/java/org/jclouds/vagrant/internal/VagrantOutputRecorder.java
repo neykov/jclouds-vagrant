@@ -41,7 +41,7 @@ public class VagrantOutputRecorder implements CommandIOListener {
    public String getOutput() {
       return output.toString();
    }
-   
+
    public void reset() {
       output.setLength(0);
    }

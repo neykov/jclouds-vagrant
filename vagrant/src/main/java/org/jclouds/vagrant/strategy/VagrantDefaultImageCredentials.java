@@ -48,74 +48,74 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
    @Resource
    protected Logger logger = Logger.NULL;
 
-    protected final LoginCredentials creds;
-    protected final Map<String, Credentials> credentialStore;
-    protected final Map<OsFamily, LoginCredentials> osFamilyToCredentials;
+   protected final LoginCredentials creds;
+   protected final Map<String, Credentials> credentialStore;
+   protected final Map<OsFamily, LoginCredentials> osFamilyToCredentials;
 
-    @Inject
-    VagrantDefaultImageCredentials(@Nullable @Named("image") LoginCredentials creds,
-             Map<String, Credentials> credentialStore, Map<OsFamily, LoginCredentials> osFamilyToCredentials) {
-       this.creds = creds;
-       this.credentialStore = credentialStore;
-       this.osFamilyToCredentials = osFamilyToCredentials;
-    }
+   @Inject
+   VagrantDefaultImageCredentials(@Nullable @Named("image") LoginCredentials creds,
+         Map<String, Credentials> credentialStore, Map<OsFamily, LoginCredentials> osFamilyToCredentials) {
+      this.creds = creds;
+      this.credentialStore = credentialStore;
+      this.osFamilyToCredentials = osFamilyToCredentials;
+   }
 
-    @Override
-    public LoginCredentials apply(Object resourceToAuthenticate) {
-        checkState(resourceToAuthenticate instanceof Image, "this is only valid for images, not %s",
-                resourceToAuthenticate.getClass().getSimpleName());
-       if (creds != null)
-          return creds;
-       Image image = Image.class.cast(resourceToAuthenticate);
-       if (credentialStore.containsKey("image#" + image.getId()))
-          return LoginCredentials.fromCredentials(credentialStore.get("image#" + image.getId()));
-       if (image.getOperatingSystem() != null && image.getOperatingSystem().getFamily() != null
-                && osFamilyToCredentials.containsKey(image.getOperatingSystem().getFamily())) {
-          return osFamilyToCredentials.get(image.getOperatingSystem().getFamily());
-       } else {
-          if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
-             return parseWinRmBoxCredentials(image);
-          } else {
-             return parseSshBoxCredentials(image);
-          }
-       }
-    }
+   @Override
+   public LoginCredentials apply(Object resourceToAuthenticate) {
+      checkState(resourceToAuthenticate instanceof Image, "this is only valid for images, not %s",
+            resourceToAuthenticate.getClass().getSimpleName());
+      if (creds != null)
+         return creds;
+      Image image = Image.class.cast(resourceToAuthenticate);
+      if (credentialStore.containsKey("image#" + image.getId()))
+         return LoginCredentials.fromCredentials(credentialStore.get("image#" + image.getId()));
+      if (image.getOperatingSystem() != null && image.getOperatingSystem().getFamily() != null
+            && osFamilyToCredentials.containsKey(image.getOperatingSystem().getFamily())) {
+         return osFamilyToCredentials.get(image.getOperatingSystem().getFamily());
+      } else {
+         if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
+            return parseWinRmBoxCredentials(image);
+         } else {
+            return parseSshBoxCredentials(image);
+         }
+      }
+   }
 
-    private LoginCredentials parseWinRmBoxCredentials(Image image) {
-       BoxConfigParser parser = BoxConfigParser.newInstance(image);
-       String username = parser.getStringKey(VagrantConstants.KEY_WINRM_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
-       String password = parser.getStringKey(VagrantConstants.KEY_WINRM_PASSWORD).or(VagrantConstants.DEFAULT_PASSWORD);
-       return LoginCredentials.builder()
-             .user(username)
-             .password(password)
-             .noPrivateKey()
-             .build();
-    }
+   private LoginCredentials parseWinRmBoxCredentials(Image image) {
+      BoxConfigParser parser = BoxConfigParser.newInstance(image);
+      String username = parser.getStringKey(VagrantConstants.KEY_WINRM_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
+      String password = parser.getStringKey(VagrantConstants.KEY_WINRM_PASSWORD).or(VagrantConstants.DEFAULT_PASSWORD);
+      return LoginCredentials.builder()
+            .user(username)
+            .password(password)
+            .noPrivateKey()
+            .build();
+   }
 
-    private LoginCredentials parseSshBoxCredentials(Image image) {
-       BoxConfigParser parser = BoxConfigParser.newInstance(image);
-       String username = parser.getStringKey(VagrantConstants.KEY_SSH_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
-       Builder credBuilder = LoginCredentials.builder().user(username);
-       Optional<String> password = parser.getStringKey(VagrantConstants.KEY_SSH_PASSWORD);
-       if (password.isPresent()) {
-          credBuilder.password(password.get());
-       }
-       Optional<String> privateKeyPath = parser.getStringKey(VagrantConstants.KEY_SSH_PRIVATE_KEY_PATH);
-       if (privateKeyPath.isPresent()) {
-          File privateKey = new File(parser.getFolder(), privateKeyPath.get());
-          if (privateKey.exists()) {
-             try {
+   private LoginCredentials parseSshBoxCredentials(Image image) {
+      BoxConfigParser parser = BoxConfigParser.newInstance(image);
+      String username = parser.getStringKey(VagrantConstants.KEY_SSH_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
+      Builder credBuilder = LoginCredentials.builder().user(username);
+      Optional<String> password = parser.getStringKey(VagrantConstants.KEY_SSH_PASSWORD);
+      if (password.isPresent()) {
+         credBuilder.password(password.get());
+      }
+      Optional<String> privateKeyPath = parser.getStringKey(VagrantConstants.KEY_SSH_PRIVATE_KEY_PATH);
+      if (privateKeyPath.isPresent()) {
+         File privateKey = new File(parser.getFolder(), privateKeyPath.get());
+         if (privateKey.exists()) {
+            try {
                credBuilder.privateKey(Files.toString(privateKey, Charsets.UTF_8));
             } catch (IOException e) {
                throw new IllegalStateException("Failure reading private key file " +
                      privateKey.getAbsolutePath() + " for box " + parser.getFolder().getAbsolutePath());
             }
-          } else {
-             logger.warn("Private key " + privateKeyPath.get() + " for box " +
-                   parser.getFolder().getAbsolutePath() + " not found at " + privateKey.getAbsolutePath() + ". Ignoring.");
-          }
-       }
-       return credBuilder.build();
-     }
+         } else {
+            logger.warn("Private key " + privateKeyPath.get() + " for box " +
+                  parser.getFolder().getAbsolutePath() + " not found at " + privateKey.getAbsolutePath() + ". Ignoring.");
+         }
+      }
+      return credBuilder.build();
+   }
 
 }

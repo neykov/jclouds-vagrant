@@ -19,62 +19,60 @@ require 'yaml'
 Vagrant.require_version ">= 1.8"
 
 Vagrant.configure(2) do |config|
-
   Dir.glob('machines/*.yaml') do |machine_file|
     machine_config = YAML.load_file(machine_file)
     name = File.basename(machine_file, ".yaml")
-    config.vm.define name do |srv|
-        srv.vm.box = machine_config["box"]
-        srv.vm.network "private_network", type: "dhcp"
-        srv.vm.synced_folder '.', '/vagrant', disabled: true
-        srv.ssh.username = machine_config["username"] if machine_config.key?("username") 
-        srv.ssh.password = machine_config["password"] if machine_config.key?("password")
-        srv.ssh.private_key_path = machine_config["private_key_path"] if machine_config.key?("private_key_path")
+    config.vm.define name do |config|
+      config.vm.box = machine_config["box"]
+      config.vm.network "private_network", type: "dhcp"
+      config.vm.synced_folder '.', '/vagrant', disabled: true
+      config.ssh.username = machine_config["username"] if machine_config.key?("username") 
+      config.ssh.password = machine_config["password"] if machine_config.key?("password")
+      config.ssh.private_key_path = machine_config["private_key_path"] if machine_config.key?("private_key_path")
 
-        isWindows = (machine_config["osFamily"] == "windows");
-        if isWindows
-          # That's a Powershell script.
-          # Go through a temporary file, otherwise getting the following error:
+      isWindows = (machine_config["osFamily"] == "windows");
+      if isWindows
+        # That's a Powershell script.
+        # Go through a temporary file, otherwise getting the following error:
 
-          # out-lineoutput : The OS handle's position is not what FileStream expected. Do n
-          # ot use a handle simultaneously in one FileStream and in Win32 code or another F
-          # ileStream. This may cause data loss.
-          #     + CategoryInfo          : NotSpecified: (:) [out-lineoutput], IOException
-          #     + FullyQualifiedErrorId : System.IO.IOException,Microsoft.PowerShell.Comma 
-          #     nds.OutLineOutputCommand
+        # out-lineoutput : The OS handle's position is not what FileStream expected. Do n
+        # ot use a handle simultaneously in one FileStream and in Win32 code or another F
+        # ileStream. This may cause data loss.
+        #     + CategoryInfo          : NotSpecified: (:) [out-lineoutput], IOException
+        #     + FullyQualifiedErrorId : System.IO.IOException,Microsoft.PowerShell.Comma 
+        #     nds.OutLineOutputCommand
 
-          srv.vm.provision "shell", inline: <<-EOF
-            $tmp = [System.IO.Path]::GetTempFileName()
-            echo "================= Networks start =================" > $tmp
-            ipconfig | find "IPv4 Address" >> $tmp 2>&1
-            echo "================= Networks end ===================" >> $tmp
-            echo "================= Hostname start ==========================" >> $tmp
-            hostname >> $tmp 2>&1
-            echo "================= Hostname end ============================" >> $tmp
-            type $tmp
-          EOF
-        else
-          srv.vm.provision "shell", inline: <<-EOF
-            echo "================= Networks start ================="
-            ip address show | grep 'scope global' 2>&1
-            echo "================= Networks end ==================="
-            echo "================= Hostname start =========================="
-            hostname 2>&1
-            echo "================= Hostname end ============================"
-          EOF
+        config.vm.provision "shell", inline: <<-EOF
+          $tmp = [System.IO.Path]::GetTempFileName()
+          echo "================= Networks start =================" > $tmp
+          ipconfig | find "IPv4 Address" >> $tmp 2>&1
+          echo "================= Networks end ===================" >> $tmp
+          echo "================= Hostname start ==========================" >> $tmp
+          hostname >> $tmp 2>&1
+          echo "================= Hostname end ============================" >> $tmp
+          type $tmp
+        EOF
+      else
+        config.vm.provision "shell", inline: <<-EOF
+          echo "================= Networks start ================="
+          ip address show | grep 'scope global' 2>&1
+          echo "================= Networks end ==================="
+          echo "================= Hostname start =========================="
+          hostname 2>&1
+          echo "================= Hostname end ============================"
+        EOF
+      end
+
+      config.vm.provider "virtualbox" do |v|
+        v.memory = machine_config["memory"] if machine_config.key?("memory")
+        v.cpus = machine_config["cpus"] if machine_config.key?("cpus")
+        v.linked_clone = true
+        # Windows needs additional drivers for virtio
+        if !isWindows
+          v.customize ["modifyvm", :id, "--nictype1", "virtio"]
+          v.customize ["modifyvm", :id, "--nictype2", "virtio"]
         end
-
-        srv.vm.provider "virtualbox" do |v|
-           v.memory = machine_config["memory"] if machine_config.key?("memory")
-           v.cpus = machine_config["cpus"] if machine_config.key?("cpus")
-           v.linked_clone = true
-           # Windows needs additional drivers for virtio
-           if !isWindows
-             v.customize ["modifyvm", :id, "--nictype1", "virtio"]
-             v.customize ["modifyvm", :id, "--nictype2", "virtio"]
-           end
-        end
+      end
     end
   end
-
 end
