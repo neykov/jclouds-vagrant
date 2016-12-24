@@ -25,14 +25,14 @@ import com.google.inject.Inject;
 
 import vagrant.api.CommandIOListener;
 
-public class VagrantIOListener implements CommandIOListener {
+public class VagrantWireLogger implements CommandIOListener {
    private HttpWire wire;
 
    // Vagrant commands are sequential (non-concurrent)
    private String lastPartialLine = "";
 
    @Inject
-   public VagrantIOListener(HttpWire wire) {
+   VagrantWireLogger(HttpWire wire) {
       this.wire = wire;
    }
 

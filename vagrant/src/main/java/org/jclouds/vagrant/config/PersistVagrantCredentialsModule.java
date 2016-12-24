@@ -50,7 +50,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
       protected final Statement statement;
 
       @Inject
-      protected RefreshCredentialsForNodeIfRanAdminAccess(
+      RefreshCredentialsForNodeIfRanAdminAccess(
             VagrantNodeRegistry vagrantNodeRegistry,
             Map<String, Credentials> credentialStore,
             @Nullable @Assisted Statement statement) {
@@ -104,7 +104,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
      static class RefreshCredentialsForNode extends RefreshCredentialsForNodeIfRanAdminAccess {
 
         @Inject
-        public RefreshCredentialsForNode(
+        RefreshCredentialsForNode(
             VagrantNodeRegistry vagrantNodeRegistry,
             Map<String, Credentials> credentialStore,
             @Assisted @Nullable Statement statement) {

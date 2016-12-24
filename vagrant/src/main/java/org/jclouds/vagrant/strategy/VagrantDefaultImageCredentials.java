@@ -21,8 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.Resource;
 import javax.inject.Inject;
@@ -36,6 +34,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
+import org.jclouds.vagrant.internal.BoxConfigParser;
 import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
@@ -74,72 +73,49 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
                 && osFamilyToCredentials.containsKey(image.getOperatingSystem().getFamily())) {
           return osFamilyToCredentials.get(image.getOperatingSystem().getFamily());
        } else {
-          File boxPath = getImagePath(image);
-          String config = readBoxConfig(boxPath);
-          return parseBoxCredentials(boxPath, config);
+          if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
+             return parseWinRmBoxCredentials(image);
+          } else {
+             return parseSshBoxCredentials(image);
+          }
        }
     }
 
-    private LoginCredentials parseBoxCredentials(File boxPath, String config) {
-       String username = getKey(config, ".ssh.username").or(VagrantConstants.DEFAULT_USERNAME);
+    private LoginCredentials parseWinRmBoxCredentials(Image image) {
+       BoxConfigParser parser = BoxConfigParser.newInstance(image);
+       String username = parser.getStringKey(VagrantConstants.KEY_WINRM_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
+       String password = parser.getStringKey(VagrantConstants.KEY_WINRM_PASSWORD).or(VagrantConstants.DEFAULT_PASSWORD);
+       return LoginCredentials.builder()
+             .user(username)
+             .password(password)
+             .noPrivateKey()
+             .build();
+    }
+
+    private LoginCredentials parseSshBoxCredentials(Image image) {
+       BoxConfigParser parser = BoxConfigParser.newInstance(image);
+       String username = parser.getStringKey(VagrantConstants.KEY_SSH_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
        Builder credBuilder = LoginCredentials.builder().user(username);
-       Optional<String> password = getKey(config, ".ssh.password");
+       Optional<String> password = parser.getStringKey(VagrantConstants.KEY_SSH_PASSWORD);
        if (password.isPresent()) {
           credBuilder.password(password.get());
        }
-       Optional<String> privateKeyPath = getKey(config, ".ssh.private_key_path");
+       Optional<String> privateKeyPath = parser.getStringKey(VagrantConstants.KEY_SSH_PRIVATE_KEY_PATH);
        if (privateKeyPath.isPresent()) {
-          File privateKey = new File(boxPath, privateKeyPath.get());
+          File privateKey = new File(parser.getFolder(), privateKeyPath.get());
           if (privateKey.exists()) {
              try {
                credBuilder.privateKey(Files.toString(privateKey, Charsets.UTF_8));
             } catch (IOException e) {
                throw new IllegalStateException("Failure reading private key file " +
-                     privateKey.getAbsolutePath() + " for box " + boxPath.getAbsolutePath());
+                     privateKey.getAbsolutePath() + " for box " + parser.getFolder().getAbsolutePath());
             }
           } else {
              logger.warn("Private key " + privateKeyPath.get() + " for box " +
-                   boxPath.getAbsolutePath() + " not found at " + privateKey.getAbsolutePath() + ". Ignoring.");
+                   parser.getFolder().getAbsolutePath() + " not found at " + privateKey.getAbsolutePath() + ". Ignoring.");
           }
        }
        return credBuilder.build();
      }
 
-    private Optional<String> getKey(String config, String key) {
-       String keyQuoted = Pattern.quote(key);
-       String search = keyQuoted + "\\s*=\\s*\"(.*)\"";
-       Matcher matcher = Pattern.compile(search).matcher(config);
-       if (matcher.find()) {
-          return Optional.of(matcher.group(1));
-       } else {
-          return Optional.absent();
-       }
-    }
-
-   private String readBoxConfig(File boxPath) {
-        if (!boxPath.exists()) return "";
-        try {
-           return Files.toString(new File(boxPath, VagrantConstants.VAGRANTFILE), Charsets.UTF_8);
-        } catch (IOException e) {
-           throw new RuntimeException(e);
-        }
-     }
-     private File getImagePath(Image image) {
-        File boxes = new File(getVagrantHome(), VagrantConstants.VAGRANT_BOXES_SUBFOLDER);
-        File boxPath = new File(boxes, getPathName(image));
-        File versionPath = new File(boxPath, image.getVersion());
-        File providerPath = new File(versionPath, image.getUserMetadata().get("provider"));
-        return providerPath;
-     }
-     private String getPathName(Image image) {
-        return image.getName().replace("/", VagrantConstants.ESCAPE_SLASH);
-     }
-     private File getVagrantHome() {
-        String home = System.getProperty(VagrantConstants.ENV_VAGRANT_HOME);
-        if (home != null) {
-           return new File(home);
-        } else {
-           return new File(System.getProperty("user.home"), VagrantConstants.VAGRANT_HOME_DEFAULT);
-        }
-     }
 }

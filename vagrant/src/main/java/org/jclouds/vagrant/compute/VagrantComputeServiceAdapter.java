@@ -35,6 +35,8 @@ import javax.inject.Named;
 
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Hardware;
+import org.jclouds.compute.domain.Image;
+import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.Volume;
@@ -43,11 +45,13 @@ import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.VagrantNode;
-import org.jclouds.vagrant.internal.VagrantIOListener;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.internal.VagrantOutputRecorder;
+import org.jclouds.vagrant.internal.VagrantWireLogger;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
@@ -69,7 +73,8 @@ import vagrant.api.domain.MachineState;
 import vagrant.api.domain.SshConfig;
 
 public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
-   private static final Pattern INTERFACE = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
+   private static final Pattern PATTERN_IP_ADDR = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
+   private static final Pattern PATTERN_IPCONFIG = Pattern.compile("IPv4 Address[ .]+: ([0-9\\.]+)");
 
    @Resource
    protected Logger logger = Logger.NULL;
@@ -78,18 +83,18 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
    private final Supplier<Map<String, Hardware>> hardwareSupplier;
-   private final VagrantIOListener ioListener;
+   private final VagrantWireLogger wireLogger;
 
    @Inject
    VagrantComputeServiceAdapter(@Named(VagrantConstants.VAGRANT_HOME) String home,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
-         VagrantIOListener ioListener,
+         VagrantWireLogger wireLogger,
          Supplier<Map<String, Hardware>> hardwareSupplier) {
       this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
-      this.ioListener = ioListener;
+      this.wireLogger = wireLogger;
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.home.mkdirs();
    }
@@ -101,60 +106,101 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
       init(nodePath, machineName, template);
 
-      NodeAndInitialCredentials<VagrantNode> node = startMachine(nodePath, group, machineName);
+      NodeAndInitialCredentials<VagrantNode> node = startMachine(nodePath, group, machineName, template.getImage());
       nodeRegistry.add(node.getNode());
       return node;
    }
 
-   private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name) {
+   private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name, Image image) {
 
-      VagrantApi vagrant = Vagrant.forPath(path, ioListener);
+      VagrantOutputRecorder outputRecorder = new VagrantOutputRecorder(wireLogger);
+      VagrantApi vagrant = Vagrant.forPath(path, outputRecorder);
       vagrant.up(name);
 
-      SshConfig sshConfig = vagrant.sshConfig(name);
+      String output = normalizeOutput(name, outputRecorder.getOutput());
+      outputRecorder.reset();
+
+      OsFamily osFamily = image.getOperatingSystem().getFamily();
       String id = group + "/" + name;
       VagrantNode node = VagrantNode.builder()
             .setPath(path)
             .setId(id)
             .setName(name)
-            .setNetworks(getNetworks(name, vagrant))
-            .setHostname(getHostname(name, vagrant))
+            .setImage(image)
+            .setNetworks(getNetworks(output, getOsInterfacePattern(osFamily)))
+            .setHostname(getHostname(output))
             .build();
       node.setMachineState(MachineState.RUNNING);
 
-      String privateKey;
-      try {
-         privateKey = Files.toString(new File(sshConfig.getIdentityFile()), Charset.defaultCharset());
-      } catch (IOException e) {
-         throw new IllegalStateException("Invalid private key " + sshConfig.getIdentityFile(), e);
+      LoginCredentials loginCredentials = null;
+      if (osFamily != OsFamily.WINDOWS) {
+         SshConfig sshConfig = vagrant.sshConfig(name);
+         Builder loginCredentialsBuilder = LoginCredentials.builder()
+               .user(sshConfig.getUser());
+
+         try {
+            String privateKey = Files.toString(new File(sshConfig.getIdentityFile()), Charset.defaultCharset());
+            loginCredentialsBuilder.privateKey(privateKey);
+         } catch (IOException e) {
+            throw new IllegalStateException("Invalid private key " + sshConfig.getIdentityFile(), e);
+         }
+
+         loginCredentials = loginCredentialsBuilder.build();
       }
 
-      LoginCredentials loginCredentials = LoginCredentials.builder()
-            .user(sshConfig.getUser())
-            .privateKey(privateKey)
-            .build();
       // PrioritizeCredentialsFromTemplate will overwrite loginCredentials with image credentials
       // AdaptingComputeServiceStrategies saves the merged credentials in credentialStore
       return new NodeAndInitialCredentials<VagrantNode>(node, node.id(), loginCredentials);
    }
 
-   private Collection<String> getNetworks(String name, VagrantApi vagrant) {
-       // TODO Add ifconfig fallback in case ip is not available; ifconfig not available on CentOS 7.
-       String networks = vagrant.ssh(name, "ip address show | grep 'scope global'");
-       Matcher m = INTERFACE.matcher(networks);
-       Collection<String> ips = new ArrayList<String>();
-       while (m.find()) {
-          String network = m.group(1);
-          // TODO figure out a more generic approach to ignore unreachable networkds (this one is the NAT'd address).
-          if (network.startsWith("10.")) continue;
-          ips.add(network);
-       }
-       return ips;
-    }
+   private String normalizeOutput(String name, String output) {
+      return output.replace("==> " + name + ": ", "")
+            // Vagrant shows some of the \n verbatim in provisioning command results.
+            .replace("\\n", "\n");
+   }
 
-   private String getHostname(String name, VagrantApi vagrant) {
-       return vagrant.ssh(name, "hostname").trim();
-    }
+   private Pattern getOsInterfacePattern(OsFamily osFamily) {
+      if (osFamily == OsFamily.WINDOWS) {
+         return PATTERN_IPCONFIG;
+      } else {
+         return PATTERN_IP_ADDR;
+      }
+   }
+
+   private Collection<String> getNetworks(String output, Pattern ifPattern) {
+      String networks = getDelimitedString(
+            output,
+            VagrantConstants.DELIMITER_NETWORKS_START,
+            VagrantConstants.DELIMITER_NETWORKS_END);
+      Matcher m = ifPattern.matcher(networks);
+      Collection<String> ips = new ArrayList<String>();
+      while (m.find()) {
+         String network = m.group(1);
+         // TODO figure out a more generic approach to ignore unreachable networkds (this one is the NAT'd address).
+         if (network.startsWith("10.")) continue;
+         ips.add(network);
+      }
+      return ips;
+   }
+
+   private String getHostname(String output) {
+      return getDelimitedString(
+            output,
+            VagrantConstants.DELIMITER_HOSTNAME_START,
+            VagrantConstants.DELIMITER_HOSTNAME_END);
+   }
+   
+   private String getDelimitedString(String value, String delimStart, String delimEnd) {
+      int startPos = value.indexOf(delimStart);
+      int endPos = value.indexOf(delimEnd);
+      if (startPos == -1) {
+         throw new IllegalStateException("Delimiter " + delimStart + " not found in output \n" + value);
+      }
+      if (endPos == -1) {
+         throw new IllegalStateException("Delimiter " + delimEnd + " not found in output \n" + value);
+      }
+      return value.substring(startPos + delimStart.length(), endPos).trim();
+   }
 
    private void init(File path, String name, Template template) {
       try {
@@ -188,6 +234,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       }
       config.save(ImmutableMap.<String, Object>of(
             VagrantConstants.CONFIG_BOX, template.getImage().getId(),
+            VagrantConstants.CONFIG_OS_FAMILY, template.getImage().getOperatingSystem().getFamily(),
             VagrantConstants.CONFIG_HARDWARE_ID, template.getHardware().getId(),
             VagrantConstants.CONFIG_MEMORY, Integer.toString(template.getHardware().getRam()),
             VagrantConstants.CONFIG_CPUS, Integer.toString(countProcessors(template))));
@@ -208,7 +255,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Box> listImages() {
-      return Vagrant.forPath(new File("."), ioListener).box().list();
+      return Vagrant.forPath(new File("."), wireLogger).box().list();
    }
 
    @Override
@@ -303,7 +350,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
                @Override
                public Collection<VagrantNode> apply(File input) {
                   File machines = new File(input, VagrantConstants.MACHINES_CONFIG_SUBFOLDER);
-                  VagrantApi vagrant = Vagrant.forPath(input, ioListener);
+                  VagrantApi vagrant = Vagrant.forPath(input, wireLogger);
                   if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                      Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                      for (File machine : machines.listFiles()) {
@@ -335,7 +382,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private VagrantApi getMachine(VagrantNode node) {
       File nodePath = node.path();
-      return Vagrant.forPath(nodePath, ioListener);
+      return Vagrant.forPath(nodePath, wireLogger);
    }
 
    private String removeFromStart(String name, String group) {

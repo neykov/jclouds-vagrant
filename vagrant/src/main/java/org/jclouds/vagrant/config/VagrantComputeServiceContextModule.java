@@ -35,7 +35,7 @@ import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.functions.BoxToImage;
 import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
-import org.jclouds.vagrant.internal.VagrantIOListener;
+import org.jclouds.vagrant.internal.VagrantWireLogger;
 import org.jclouds.vagrant.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 
@@ -70,7 +70,7 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       }).to(this.<Location>castIdentityFunction());
       bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
       bind(TemplateBuilderImpl.class).to(ArbitraryCpuRamTemplateBuilderImpl.class);
-      bind(CommandIOListener.class).to(VagrantIOListener.class).in(Singleton.class);
+      bind(CommandIOListener.class).to(VagrantWireLogger.class).in(Singleton.class);
    }
 
    @Override

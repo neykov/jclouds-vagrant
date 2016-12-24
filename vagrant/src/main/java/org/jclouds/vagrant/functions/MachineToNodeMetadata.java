@@ -24,13 +24,16 @@ import java.util.Set;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.HardwareBuilder;
+import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.NodeMetadataBuilder;
+import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.util.AutomaticHardwareIdSpec;
 import org.jclouds.domain.Location;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.internal.BoxConfigParser;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.MachineConfig;
 
@@ -49,7 +52,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
    private final Supplier<Map<String, Hardware>> hardwareSupplier;
 
    @Inject
-   public MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
+   MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
          @Memoized Supplier<Set<? extends Location>> locations,
          Supplier<Map<String, Hardware>> hardwareSupplier) {
       this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
@@ -85,16 +88,29 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
             .ids(node.id())
             .name(node.name())
             .group(node.path().getName())
+            .imageId(node.image().getId())
             .location(location)
             .hardware(hardware)
             .hostname(node.name())
             .status(toPortableNodeStatus.apply(node.machineState()))
-            .loginPort(22)
+            .loginPort(getLoginPort(node.image()))
             .privateAddresses(node.networks())
-            .publicAddresses(ImmutableList.<String> of()).hostname(node.hostname());
+            .publicAddresses(ImmutableList.<String> of())
+            .hostname(node.hostname());
       // Credentials fetched from cache from AdaptingComputeServiceStrategies.addLoginCredentials.
       // Cache already initialized just after creating the node.
       return nodeMetadataBuilder.build();
+   }
+
+   private int getLoginPort(Image image) {
+      BoxConfigParser config = BoxConfigParser.newInstance(image);
+      String port;
+      if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
+         port = config.getKey(VagrantConstants.KEY_WINRM_PORT).or("5985");
+      } else {
+         port = config.getKey(VagrantConstants.KEY_SSH_PORT).or("22");
+      }
+      return Integer.parseInt(port);
    }
 
 }

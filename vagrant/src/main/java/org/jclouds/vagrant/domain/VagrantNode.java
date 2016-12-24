@@ -19,6 +19,8 @@ package org.jclouds.vagrant.domain;
 import java.io.File;
 import java.util.Collection;
 
+import org.jclouds.compute.domain.Image;
+
 import com.google.auto.value.AutoValue;
 
 import vagrant.api.domain.MachineState;
@@ -34,6 +36,8 @@ public abstract class VagrantNode {
 
    public abstract String name();
 
+   public abstract Image image();
+
    public abstract Collection<String> networks();
 
    public abstract String hostname();
@@ -47,6 +51,7 @@ public abstract class VagrantNode {
       public abstract Builder setPath(File path);
       public abstract Builder setId(String id);
       public abstract Builder setName(String name);
+      public abstract Builder setImage(Image image);
       public abstract Builder setNetworks(Collection<String> networks);
       public abstract Builder setHostname(String hostname);
       public abstract VagrantNode build();

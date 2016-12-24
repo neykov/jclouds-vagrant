@@ -21,8 +21,11 @@ import org.jclouds.compute.domain.Image.Status;
 import org.jclouds.compute.domain.ImageBuilder;
 import org.jclouds.compute.domain.OperatingSystem;
 import org.jclouds.compute.domain.OsFamily;
+import org.jclouds.vagrant.internal.BoxConfigParser;
+import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
 import vagrant.api.domain.Box;
@@ -33,16 +36,17 @@ public class BoxToImage implements Function<Box, Image> {
    public Image apply(Box input) {
       OperatingSystem os = new OperatingSystem(inferOsFamily(input), input.getName(), input.getVersion(), null, input.getName(), true);
       return new ImageBuilder()
-         .ids(input.getName())
-         .name(input.getName())
-         .version(input.getVersion())
-         .operatingSystem(os)
-         .status(Status.AVAILABLE)
-         // Overriden by AddDefaultCredentialsToImage
-         //.defaultCredentials()
-         .userMetadata(ImmutableMap.of("provider", input.getProvider()))
-         .build();
+            .ids(input.getName())
+            .name(input.getName())
+            .version(input.getVersion())
+            .operatingSystem(os)
+            .status(Status.AVAILABLE)
+            // Overriden by AddDefaultCredentialsToImage
+            //.defaultCredentials()
+            .userMetadata(ImmutableMap.of("provider", input.getProvider()))
+            .build();
    }
+
    private OsFamily inferOsFamily(Box input) {
       String name = input.getName().toUpperCase();
       for (OsFamily family : OsFamily.values()) {
@@ -50,6 +54,13 @@ public class BoxToImage implements Function<Box, Image> {
             return family;
          }
       }
+
+      BoxConfigParser configParser = BoxConfigParser.newInstance(input);
+      Optional<String> guest = configParser.getKey(VagrantConstants.KEY_VM_GUEST);
+      if (guest.isPresent() && guest.get().equals(VagrantConstants.VM_GUEST_WINDOWS)) {
+         return OsFamily.WINDOWS;
+      }
       return OsFamily.UNRECOGNIZED;
    }
+
 }
