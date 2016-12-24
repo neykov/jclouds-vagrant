@@ -29,12 +29,16 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import org.jclouds.JcloudsVersion;
 import org.jclouds.util.Closeables2;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+
+import autovalue.shaded.com.google.common.common.base.Predicates;
+import autovalue.shaded.com.google.common.common.collect.Maps;
 
 public class MachineConfig {
    private File configPath;
@@ -86,7 +90,10 @@ public class MachineConfig {
          }
       }
 
-      String output = Joiner.on("\n").withKeyValueSeparator(": ").join(config);
+      Map<String, Object> configWithoutVersion = Maps.filterKeys(config,
+            Predicates.not(Predicates.equalTo(VagrantConstants.CONFIG_JCLOUDS_VERSION)));
+      String version = VagrantConstants.CONFIG_JCLOUDS_VERSION + ": " + JcloudsVersion.get().toString() + "\n";
+      String output = version + Joiner.on("\n").withKeyValueSeparator(": ").join(configWithoutVersion);
 
       FileOutputStream fileOut = null;
       BufferedWriter out = null;

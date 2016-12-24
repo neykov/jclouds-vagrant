@@ -50,6 +50,7 @@ public final class VagrantConstants {
    public static final String MACHINES_CONFIG_EXTENSION = ".yaml";
 
    // Config file keys
+   public static final String CONFIG_JCLOUDS_VERSION = "jcloudsVersion";
    public static final String CONFIG_BOX = "box";
    public static final String CONFIG_HARDWARE_ID = "hardwareId";
    public static final String CONFIG_OS_FAMILY = "osFamily";
