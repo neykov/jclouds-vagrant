@@ -67,17 +67,13 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
       if (creds != null)
          return creds;
       Image image = Image.class.cast(resourceToAuthenticate);
-      if (credentialStore.containsKey("image#" + image.getId()))
+      if (credentialStore.containsKey("image#" + image.getId())) {
          return LoginCredentials.fromCredentials(credentialStore.get("image#" + image.getId()));
-      if (image.getOperatingSystem() != null && image.getOperatingSystem().getFamily() != null
-            && osFamilyToCredentials.containsKey(image.getOperatingSystem().getFamily())) {
-         return osFamilyToCredentials.get(image.getOperatingSystem().getFamily());
+      // Skipping osFamilyToCredentials - not applicable to vagrant world
+      } else if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
+         return parseWinRmBoxCredentials(image);
       } else {
-         if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
-            return parseWinRmBoxCredentials(image);
-         } else {
-            return parseSshBoxCredentials(image);
-         }
+         return parseSshBoxCredentials(image);
       }
    }
 
