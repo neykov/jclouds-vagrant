@@ -64,6 +64,7 @@ Vagrant.configure(2) do |config|
       end
 
       config.vm.provider "virtualbox" do |v|
+        v.gui = false
         v.memory = machine_config["memory"] if machine_config.key?("memory")
         v.cpus = machine_config["cpus"] if machine_config.key?("cpus")
         v.linked_clone = true
