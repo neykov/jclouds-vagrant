@@ -91,6 +91,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
             .imageId(node.image().getId())
             .location(location)
             .hardware(hardware)
+            .operatingSystem(node.image().getOperatingSystem())
             .hostname(node.name())
             .status(toPortableNodeStatus.apply(node.machineState()))
             .loginPort(getLoginPort(node.image()))
