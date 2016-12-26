@@ -20,12 +20,13 @@ public final class VagrantConstants {
    private VagrantConstants() {}
 
    public static final String VAGRANT_HOME = "vagrant.home";
+   public static final String VAGRANT_HOME_DEFAULT = "~/.jclouds/vagrant";
    public static final String VAGRANTFILE = "Vagrantfile";
    public static final String DEFAULT_USERNAME = "vagrant";
    public static final String DEFAULT_PASSWORD = "vagrant";
 
    public static final String ENV_VAGRANT_HOME = "VAGRANT_HOME";
-   public static final String VAGRANT_HOME_DEFAULT = ".vagrant.d";
+   public static final String ENV_VAGRANT_HOME_DEFAULT = ".vagrant.d";
    public static final String VAGRANT_BOXES_SUBFOLDER = "boxes";
 
    public static final String ESCAPE_SLASH = "-VAGRANTSLASH-";

@@ -16,19 +16,23 @@
  */
 package org.jclouds.vagrant.compute;
 
+import java.io.File;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.internal.BaseComputeServiceLiveTest;
 import org.jclouds.sshj.config.SshjSshClientModule;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
 
-@Test(groups = "live", singleThreaded = true, testName = "VagrantComputeServiceAdapterLiveTest")
-public class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLiveTest {
+public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLiveTest {
 
    public VagrantComputeServiceAdapterLiveTest() {
       provider = "vagrant";
@@ -40,11 +44,23 @@ public class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLive
    }
 
    @Override
-   protected Template buildTemplate(TemplateBuilder templateBuilder) {
-       templateBuilder
-           .imageId("ubuntu/trusty64");
-       return super.buildTemplate(templateBuilder);
+   protected TemplateBuilder templateBuilder() {
+      return super.templateBuilder()
+         .imageId(getImageId());
    }
+
+   @Override
+   protected Properties setupProperties() {
+      Properties overrides = super.setupProperties();
+      String home = VagrantConstants.VAGRANT_HOME_DEFAULT.replace("~", System.getProperty("user.home"));
+      File testsHome = new File(home, "tests");
+      File imageHome = new File(testsHome, getImageId().replaceAll("/", "_"));
+      overrides.setProperty(VagrantConstants.VAGRANT_HOME, imageHome.getAbsolutePath());
+      Logger.getAnonymousLogger().log(Level.INFO, "Home for " + getImageId() + " at " + imageHome.getAbsolutePath());
+      return overrides;
+   }
+
+   protected abstract String getImageId();
 
    @Override
    @Test(enabled = false)
@@ -70,4 +86,5 @@ public class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLive
        // LoginCredentials are available only after the machine starts,
        // so can't return earlier.
    }
+
 }

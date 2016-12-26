@@ -87,7 +87,7 @@ public class BoxConfigParser {
       if (home != null) {
          return new File(home);
       } else {
-         return new File(System.getProperty("user.home"), VagrantConstants.VAGRANT_HOME_DEFAULT);
+         return new File(System.getProperty("user.home"), VagrantConstants.ENV_VAGRANT_HOME_DEFAULT);
       }
    }
 

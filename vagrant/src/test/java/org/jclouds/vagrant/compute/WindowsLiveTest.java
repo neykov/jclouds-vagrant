@@ -16,13 +16,20 @@
  */
 package org.jclouds.vagrant.compute;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 import java.util.Set;
 
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.domain.NodeMetadata;
+import org.jclouds.compute.domain.OperatingSystem;
+import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.internal.BaseComputeServiceContextLiveTest;
+import org.jclouds.domain.LoginCredentials;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
@@ -57,7 +64,16 @@ public class WindowsLiveTest extends BaseComputeServiceContextLiveTest {
 
    @Test
    public void testGet() throws Exception {
-      Set<? extends NodeMetadata> nodes = client.createNodesInGroup("vagrant-", 1, buildTemplate(templateBuilder()));
-      client.destroyNode(Iterables.getOnlyElement(nodes).getId());
+      Set<? extends NodeMetadata> nodes = client.createNodesInGroup("vagrant-win", 1, buildTemplate(templateBuilder()));
+      NodeMetadata node = Iterables.getOnlyElement(nodes);
+      OperatingSystem os = node.getOperatingSystem();
+      LoginCredentials creds = node.getCredentials();
+      assertEquals(os.getFamily(), OsFamily.WINDOWS);
+      assertEquals(creds.getUser(), "vagrant");
+      assertTrue(creds.getOptionalPassword().isPresent(), "password expected");
+      assertEquals(creds.getOptionalPassword().get(), "vagrant");
+      assertFalse(creds.getOptionalPrivateKey().isPresent(), "no private key expected for windows");
+      assertEquals(node.getLoginPort(), 5985);
+      client.destroyNode(node.getId());
    }
 }
