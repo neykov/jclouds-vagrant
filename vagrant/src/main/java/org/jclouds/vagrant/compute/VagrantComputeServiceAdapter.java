@@ -154,7 +154,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
    private String normalizeOutput(String name, String output) {
-      return output.replace("==> " + name + ": ", "")
+      return output
+            .replaceAll("(?m)^([^,]*,){4}", "")
+            .replace("==> " + name + ": ", "")
             // Vagrant shows some of the \n verbatim in provisioning command results.
             .replace("\\n", "\n");
    }
