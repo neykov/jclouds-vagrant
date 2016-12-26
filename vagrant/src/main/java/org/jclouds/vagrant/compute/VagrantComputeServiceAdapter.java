@@ -314,16 +314,25 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public void rebootNode(String id) {
+      halt(id);
+
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
       VagrantApi vagrant = getMachine(node);
+      vagrant.up(name);
+   }
+
+   private void halt(String id) {
+      VagrantNode node = nodeRegistry.get(id);
+      String name = node.name();
+      VagrantApi vagrant = getMachine(node);
+
       try {
          vagrant.halt(name);
       } catch (IllegalStateException e) {
-         logger.warn(e, "Failed graceful shutdown of machine " + id + " (for reboot). Will try to halt it forcefully instead.");
+         logger.warn(e, "Failed graceful shutdown of machine " + id + ". Will try to halt it forcefully instead.");
          vagrant.haltForced(name);
       }
-      vagrant.up(name);
    }
 
    @Override
@@ -331,15 +340,14 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
       VagrantApi vagrant = getMachine(node);
-      vagrant.resume(name);
+      vagrant.up(name);
       node.setMachineState(MachineState.RUNNING);
    }
 
    @Override
    public void suspendNode(String id) {
+      halt(id);
       VagrantNode node = nodeRegistry.get(id);
-      String name = node.name();
-      getMachine(node).suspend(name);
       node.setMachineState(MachineState.SAVED);
    }
 
