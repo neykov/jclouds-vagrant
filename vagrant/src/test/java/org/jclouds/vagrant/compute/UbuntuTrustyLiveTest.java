@@ -16,6 +16,11 @@
  */
 package org.jclouds.vagrant.compute;
 
+import static org.testng.Assert.assertFalse;
+
+import org.jclouds.compute.domain.Image;
+import org.jclouds.vagrant.internal.BoxConfig;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
 
 @Test(groups = "live", singleThreaded = true, testName = "UbuntuTrustyLiveTest")
@@ -26,9 +31,15 @@ public class UbuntuTrustyLiveTest extends VagrantComputeServiceAdapterLiveTest {
       return "ubuntu/trusty64";
    }
 
+
    @Test
-   @Override
-   public void testAScriptExecutionAfterBootWithBasicTemplate() throws Exception {
-      super.testAScriptExecutionAfterBootWithBasicTemplate();
+   public void testBoxConfig() {
+      Image image = view.getComputeService().getImage(getImageId());
+
+      BoxConfig.Factory boxConfigFactory = new BoxConfig.Factory();
+      BoxConfig boxConfig = boxConfigFactory.newInstance(image);
+
+      assertFalse(boxConfig.getStringKey(VagrantConstants.CONFIG_USERNAME).isPresent());
+      assertFalse(boxConfig.getStringKey(VagrantConstants.CONFIG_PASSWORD).isPresent());
    }
 }

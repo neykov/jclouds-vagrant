@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jclouds.vagrant.util;
+package org.jclouds.vagrant.internal;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -36,20 +36,21 @@ import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
-
-import autovalue.shaded.com.google.common.common.base.Predicates;
-import autovalue.shaded.com.google.common.common.collect.Maps;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Maps;
 
 public class MachineConfig {
+   public static class Factory {
+      public MachineConfig newInstance(File path, String name) {
+         return new MachineConfig(path, name);
+      }
+
+      public MachineConfig newInstance(VagrantNode node) {
+         return newInstance(node.path(), node.name());
+      }
+   }
+
    private File configPath;
-
-   public static MachineConfig newInstance(File path, String name) {
-      return new MachineConfig(path, name);
-   }
-
-   public static MachineConfig newInstance(VagrantNode node) {
-      return newInstance(node.path(), node.name());
-   }
 
    protected MachineConfig(File path, String name) {
       this.configPath = new File(new File(path, VagrantConstants.MACHINES_CONFIG_SUBFOLDER), name + ".yaml");

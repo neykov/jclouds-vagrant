@@ -41,6 +41,7 @@ import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.Volume;
 import org.jclouds.compute.domain.Volume.Type;
+import org.jclouds.compute.util.AutomaticHardwareIdSpec;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
@@ -49,11 +50,11 @@ import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.internal.VagrantOutputRecorder;
 import org.jclouds.vagrant.internal.VagrantWireLogger;
 import org.jclouds.vagrant.reference.VagrantConstants;
-import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
 
 import com.google.common.base.Function;
@@ -82,19 +83,22 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private final File home;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
-   private final Supplier<Map<String, Hardware>> hardwareSupplier;
+   private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
    private final VagrantWireLogger wireLogger;
+   private final MachineConfig.Factory machineConfigFactory;
 
    @Inject
-   VagrantComputeServiceAdapter(@Named(VagrantConstants.VAGRANT_HOME) String home,
+   VagrantComputeServiceAdapter(@Named(VagrantConstants.JCLOUDS_VAGRANT_HOME) String home,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
          VagrantWireLogger wireLogger,
-         Supplier<Map<String, Hardware>> hardwareSupplier) {
+         MachineConfig.Factory machineConfigFactory,
+         Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
       this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
-      this.wireLogger = wireLogger;
+      this.wireLogger = checkNotNull(wireLogger, "wireLogger");
+      this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.home.mkdirs();
    }
@@ -222,7 +226,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
    private void initMachineConfig(File path, String name, Template template) {
-      MachineConfig config = MachineConfig.newInstance(path, name);
+      MachineConfig config = machineConfigFactory.newInstance(path, name);
       List<? extends Volume> volumes = template.getHardware().getVolumes();
       if (volumes != null) {
          if (volumes.size() == 1) {
@@ -235,11 +239,20 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          }
       }
       config.save(ImmutableMap.<String, Object>of(
-            VagrantConstants.CONFIG_BOX, template.getImage().getId(),
+            VagrantConstants.CONFIG_BOX, template.getImage().getName(),
             VagrantConstants.CONFIG_OS_FAMILY, template.getImage().getOperatingSystem().getFamily(),
-            VagrantConstants.CONFIG_HARDWARE_ID, template.getHardware().getId(),
+            VagrantConstants.CONFIG_HARDWARE_ID, getHardwareId(template),
             VagrantConstants.CONFIG_MEMORY, Integer.toString(template.getHardware().getRam()),
             VagrantConstants.CONFIG_CPUS, Integer.toString(countProcessors(template))));
+   }
+
+   private String getHardwareId(Template template) {
+      String id = template.getHardware().getId();
+      if (AutomaticHardwareIdSpec.isAutomaticId(id)) {
+         return VagrantConstants.MACHINES_AUTO_HARDWARE;
+      } else {
+         return id;
+      }
    }
 
    private int countProcessors(Template template) {

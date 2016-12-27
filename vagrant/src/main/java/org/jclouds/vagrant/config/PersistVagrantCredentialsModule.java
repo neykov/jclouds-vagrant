@@ -16,6 +16,8 @@
  */
 package org.jclouds.vagrant.config;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -29,9 +31,10 @@ import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.jclouds.scriptbuilder.functions.CredentialsFromAdminAccess;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
+import org.jclouds.vagrant.internal.MachineConfig.Factory;
 import org.jclouds.vagrant.reference.VagrantConstants;
-import org.jclouds.vagrant.util.MachineConfig;
 import org.jclouds.vagrant.util.VagrantUtils;
 
 import com.google.common.base.Function;
@@ -48,15 +51,18 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
       protected final Map<String, Credentials> credentialStore;
       protected final VagrantNodeRegistry vagrantNodeRegistry;
       protected final Statement statement;
+      protected final Factory machineConfigFactory;
 
       @Inject
       RefreshCredentialsForNodeIfRanAdminAccess(
             VagrantNodeRegistry vagrantNodeRegistry,
             Map<String, Credentials> credentialStore,
-            @Nullable @Assisted Statement statement) {
-         this.vagrantNodeRegistry = vagrantNodeRegistry;
-         this.credentialStore = credentialStore;
+            @Nullable @Assisted Statement statement,
+            MachineConfig.Factory machineConfigFactory) {
+         this.vagrantNodeRegistry = checkNotNull(vagrantNodeRegistry, "vagrantNodeRegistry");
+         this.credentialStore = checkNotNull(credentialStore, "credentialStore");
          this.statement = statement;
+         this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
       }
 
       @Override
@@ -78,7 +84,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
          if (node == null) {
             throw new IllegalStateException("Updating node credentials failed because node " + id + " not found.");
          }
-         MachineConfig machineConfig = MachineConfig.newInstance(node);
+         MachineConfig machineConfig = machineConfigFactory.newInstance(node);
          Map<String, Object> config = machineConfig.load();
 
          config.put(VagrantConstants.CONFIG_USERNAME, credentials.getUser());
@@ -107,8 +113,9 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
       RefreshCredentialsForNode(
             VagrantNodeRegistry vagrantNodeRegistry,
             Map<String, Credentials> credentialStore,
-            @Assisted @Nullable Statement statement) {
-         super(vagrantNodeRegistry, credentialStore, statement);
+            @Assisted @Nullable Statement statement,
+            MachineConfig.Factory machineConfigFactory) {
+         super(vagrantNodeRegistry, credentialStore, statement, machineConfigFactory);
       }
 
       @Override

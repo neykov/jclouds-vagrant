@@ -52,10 +52,9 @@ public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeSe
    @Override
    protected Properties setupProperties() {
       Properties overrides = super.setupProperties();
-      String home = VagrantConstants.VAGRANT_HOME_DEFAULT.replace("~", System.getProperty("user.home"));
-      File testsHome = new File(home, "tests");
+      File testsHome = new File(VagrantConstants.JCLOUDS_VAGRANT_HOME_DEFAULT, "tests");
       File imageHome = new File(testsHome, getImageId().replaceAll("/", "_"));
-      overrides.setProperty(VagrantConstants.VAGRANT_HOME, imageHome.getAbsolutePath());
+      overrides.setProperty(VagrantConstants.JCLOUDS_VAGRANT_HOME, imageHome.getAbsolutePath());
       Logger.getAnonymousLogger().log(Level.INFO, "Home for " + getImageId() + " at " + imageHome.getAbsolutePath());
       return overrides;
    }

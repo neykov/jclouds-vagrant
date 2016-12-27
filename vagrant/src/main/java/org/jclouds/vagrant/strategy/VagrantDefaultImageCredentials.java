@@ -16,6 +16,7 @@
  */
 package org.jclouds.vagrant.strategy;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
@@ -34,7 +35,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
-import org.jclouds.vagrant.internal.BoxConfigParser;
+import org.jclouds.vagrant.internal.BoxConfig;
 import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Charsets;
@@ -50,14 +51,16 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
 
    protected final LoginCredentials creds;
    protected final Map<String, Credentials> credentialStore;
-   protected final Map<OsFamily, LoginCredentials> osFamilyToCredentials;
+   protected final BoxConfig.Factory boxConfigFactory;
 
    @Inject
-   VagrantDefaultImageCredentials(@Nullable @Named("image") LoginCredentials creds,
-         Map<String, Credentials> credentialStore, Map<OsFamily, LoginCredentials> osFamilyToCredentials) {
+   VagrantDefaultImageCredentials(
+         @Nullable @Named("image") LoginCredentials creds,
+         Map<String, Credentials> credentialStore,
+         BoxConfig.Factory boxConfigFactory) {
       this.creds = creds;
-      this.credentialStore = credentialStore;
-      this.osFamilyToCredentials = osFamilyToCredentials;
+      this.credentialStore = checkNotNull(credentialStore, "credentialStore");
+      this.boxConfigFactory = checkNotNull(boxConfigFactory, "boxConfigFactory");
    }
 
    @Override
@@ -78,7 +81,7 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
    }
 
    private LoginCredentials parseWinRmBoxCredentials(Image image) {
-      BoxConfigParser parser = BoxConfigParser.newInstance(image);
+      BoxConfig parser = boxConfigFactory.newInstance(image);
       String username = parser.getStringKey(VagrantConstants.KEY_WINRM_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
       String password = parser.getStringKey(VagrantConstants.KEY_WINRM_PASSWORD).or(VagrantConstants.DEFAULT_PASSWORD);
       return LoginCredentials.builder()
@@ -89,7 +92,7 @@ public class VagrantDefaultImageCredentials implements PopulateDefaultLoginCrede
    }
 
    private LoginCredentials parseSshBoxCredentials(Image image) {
-      BoxConfigParser parser = BoxConfigParser.newInstance(image);
+      BoxConfig parser = boxConfigFactory.newInstance(image);
       String username = parser.getStringKey(VagrantConstants.KEY_SSH_USERNAME).or(VagrantConstants.DEFAULT_USERNAME);
       Builder credBuilder = LoginCredentials.builder().user(username);
       Optional<String> password = parser.getStringKey(VagrantConstants.KEY_SSH_PASSWORD);

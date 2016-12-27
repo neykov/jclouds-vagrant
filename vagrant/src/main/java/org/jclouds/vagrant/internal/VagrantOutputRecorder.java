@@ -35,7 +35,9 @@ public class VagrantOutputRecorder implements CommandIOListener {
    @Override
    public void onOutput(String output) {
       next.onOutput(output);
-      this.output.append(output);
+      if (output != null) {
+         this.output.append(output);
+      }
    }
 
    public String getOutput() {

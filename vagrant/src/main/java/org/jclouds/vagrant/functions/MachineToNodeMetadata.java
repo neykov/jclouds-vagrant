@@ -33,9 +33,9 @@ import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.util.AutomaticHardwareIdSpec;
 import org.jclouds.domain.Location;
 import org.jclouds.vagrant.domain.VagrantNode;
-import org.jclouds.vagrant.internal.BoxConfigParser;
+import org.jclouds.vagrant.internal.BoxConfig;
+import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.reference.VagrantConstants;
-import org.jclouds.vagrant.util.MachineConfig;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -49,48 +49,32 @@ import vagrant.api.domain.MachineState;
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
    private final Function<MachineState, Status> toPortableNodeStatus;
    private final Location location;
-   private final Supplier<Map<String, Hardware>> hardwareSupplier;
+   private final BoxConfig.Factory boxConfigFactory;
+   private final MachineConfig.Factory machineConfigFactory;
+   private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
 
    @Inject
    MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
          @Memoized Supplier<Set<? extends Location>> locations,
-         Supplier<Map<String, Hardware>> hardwareSupplier) {
+         BoxConfig.Factory boxConfigFactory,
+         MachineConfig.Factory machineConfigFactory,
+         Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
       this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
       this.location = Iterables.getOnlyElement(checkNotNull(locations, "locations").get());
+      this.boxConfigFactory = checkNotNull(boxConfigFactory, "boxConfigFactory");
+      this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
    }
 
    @Override
    public NodeMetadata apply(VagrantNode node) {
-      MachineConfig machineConfig = MachineConfig.newInstance(node);
-
-      Map<String, Object> config = machineConfig.load();
-      String hardwareId = config.get(VagrantConstants.CONFIG_HARDWARE_ID).toString();
-      Hardware hardware;
-      if (AutomaticHardwareIdSpec.isAutomaticId(hardwareId)) {
-         double cpus = Double.parseDouble(config.get(VagrantConstants.CONFIG_CPUS).toString());
-         int memory = Integer.parseInt(config.get(VagrantConstants.CONFIG_MEMORY).toString());
-         AutomaticHardwareIdSpec hardwareSpec = AutomaticHardwareIdSpec.automaticHardwareIdSpecBuilder(cpus, memory, Optional.<Float>absent());
-         hardware = new HardwareBuilder()
-               .id(hardwareSpec.toString())
-               .providerId(hardwareSpec.toString())
-               .processor(new Processor(cpus, 1.0))
-               .ram(memory)
-               .build();
-      } else {
-         hardware = hardwareSupplier.get().get(hardwareId);
-         if (hardware == null) {
-            throw new IllegalStateException("Unsupported hardwareId " + hardwareId + " for machine " + node.id());
-         }
-      }
-
       NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
             .ids(node.id())
             .name(node.name())
             .group(node.path().getName())
             .imageId(node.image().getId())
             .location(location)
-            .hardware(hardware)
+            .hardware(getHardware(node))
             .operatingSystem(node.image().getOperatingSystem())
             .hostname(node.name())
             .status(toPortableNodeStatus.apply(node.machineState()))
@@ -103,8 +87,32 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
       return nodeMetadataBuilder.build();
    }
 
+   private Hardware getHardware(VagrantNode node) {
+      MachineConfig machineConfig = machineConfigFactory.newInstance(node);
+
+      Map<String, Object> config = machineConfig.load();
+      String hardwareId = config.get(VagrantConstants.CONFIG_HARDWARE_ID).toString();
+      if (hardwareId.equals(VagrantConstants.MACHINES_AUTO_HARDWARE)) {
+         double cpus = Double.parseDouble(config.get(VagrantConstants.CONFIG_CPUS).toString());
+         int memory = Integer.parseInt(config.get(VagrantConstants.CONFIG_MEMORY).toString());
+         AutomaticHardwareIdSpec hardwareSpec = AutomaticHardwareIdSpec.automaticHardwareIdSpecBuilder(cpus, memory, Optional.<Float>absent());
+         return new HardwareBuilder()
+               .id(hardwareSpec.toString())
+               .providerId(hardwareSpec.toString())
+               .processor(new Processor(cpus, 1.0))
+               .ram(memory)
+               .build();
+      } else {
+         Hardware hardware = hardwareSupplier.get().get(hardwareId);
+         if (hardware == null) {
+            throw new IllegalStateException("Unsupported hardwareId " + hardwareId + " for machine " + node.id());
+         }
+         return hardware;
+      }
+   }
+
    private int getLoginPort(Image image) {
-      BoxConfigParser config = BoxConfigParser.newInstance(image);
+      BoxConfig config = boxConfigFactory.newInstance(image);
       String port;
       if (image.getOperatingSystem().getFamily() == OsFamily.WINDOWS) {
          port = config.getKey(VagrantConstants.KEY_WINRM_PORT).or("5985");

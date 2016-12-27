@@ -16,21 +16,30 @@
  */
 package org.jclouds.vagrant.functions;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.Image.Status;
 import org.jclouds.compute.domain.ImageBuilder;
 import org.jclouds.compute.domain.OperatingSystem;
 import org.jclouds.compute.domain.OsFamily;
-import org.jclouds.vagrant.internal.BoxConfigParser;
+import org.jclouds.vagrant.internal.BoxConfig;
 import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 
 import vagrant.api.domain.Box;
 
 public class BoxToImage implements Function<Box, Image> {
+   private BoxConfig.Factory boxConfigFactory;
+
+   @Inject
+   BoxToImage(BoxConfig.Factory boxConfigFactory) {
+      this.boxConfigFactory = checkNotNull(boxConfigFactory, "boxConfigFactory");
+   }
 
    @Override
    public Image apply(Box input) {
@@ -55,7 +64,7 @@ public class BoxToImage implements Function<Box, Image> {
          }
       }
 
-      BoxConfigParser configParser = BoxConfigParser.newInstance(input);
+      BoxConfig configParser = boxConfigFactory.newInstance(input);
       Optional<String> guest = configParser.getKey(VagrantConstants.KEY_VM_GUEST);
       if (guest.isPresent() && guest.get().equals(VagrantConstants.VM_GUEST_WINDOWS)) {
          return OsFamily.WINDOWS;

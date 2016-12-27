@@ -16,7 +16,15 @@
  */
 package org.jclouds.vagrant.compute;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
+import org.jclouds.compute.domain.Image;
+import org.jclouds.vagrant.internal.BoxConfig;
+import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
 
 @Test(groups = "live", singleThreaded = true, testName = "UbuntuXenialLiveTest")
 public class UbuntuXenialLiveTest extends VagrantComputeServiceAdapterLiveTest {
@@ -27,4 +35,15 @@ public class UbuntuXenialLiveTest extends VagrantComputeServiceAdapterLiveTest {
       return "ubuntu/xenial64";
    }
 
+   @Test
+   public void testBoxConfig() {
+      Image image = view.getComputeService().getImage(getImageId());
+
+      BoxConfig.Factory boxConfigFactory = new BoxConfig.Factory();
+      BoxConfig boxConfig = boxConfigFactory.newInstance(image);
+
+      assertEquals(boxConfig.getStringKey(VagrantConstants.CONFIG_USERNAME), Optional.of("ubuntu"));
+      // Password changes on each box update
+      assertTrue(boxConfig.getStringKey(VagrantConstants.CONFIG_PASSWORD).isPresent());
+   }
 }

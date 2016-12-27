@@ -16,6 +16,28 @@
  */
 package org.jclouds.vagrant.functions;
 
-public class MachineStateToJcloudsStatusTest {
+import static org.testng.Assert.assertEquals;
 
+import org.jclouds.compute.domain.NodeMetadata.Status;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import vagrant.api.domain.MachineState;
+
+public class MachineStateToJcloudsStatusTest {
+   @DataProvider(name = "states")
+   public Object[][] getStates() {
+      return new Object[][] {
+         {null, null},
+         {MachineState.POWER_OFF, Status.SUSPENDED},
+         {MachineState.RUNNING, Status.RUNNING},
+         {MachineState.SAVED, Status.SUSPENDED},
+      };
+   }
+
+   @Test(dataProvider = "states")
+   public void testStates(MachineState machineState, Status jcloudsState) {
+      MachineStateToJcloudsStatus machineStateToJcloudsStatus = new MachineStateToJcloudsStatus();
+      assertEquals(machineStateToJcloudsStatus.apply(machineState), jcloudsState);
+   }
 }

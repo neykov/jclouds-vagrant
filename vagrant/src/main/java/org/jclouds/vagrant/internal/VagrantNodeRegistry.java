@@ -22,8 +22,11 @@ import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+import org.jclouds.date.TimeStamp;
 import org.jclouds.vagrant.domain.VagrantNode;
 
+import com.google.common.base.Supplier;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 @Singleton
@@ -32,11 +35,14 @@ public class VagrantNodeRegistry {
    private static final long VACUUM_PERIOD_MS = TimeUnit.SECONDS.toMillis(15);
 
    private static class TerminatedNode implements Delayed {
+      Supplier<Long> timeSupplier;
       long expiryTime;
       VagrantNode node;
-      TerminatedNode(VagrantNode node) {
+
+      TerminatedNode(VagrantNode node, Supplier<Long> timeSupplier) {
          this.expiryTime = System.currentTimeMillis() + TERMINATED_NODES_EXPIRY_MS;
          this.node = node;
+         this.timeSupplier = timeSupplier;
       }
       @Override
       public int compareTo(Delayed o) {
@@ -64,16 +70,20 @@ public class VagrantNodeRegistry {
       }
       @Override
       public long getDelay(TimeUnit unit) {
-         return unit.convert(expiryTime - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+         return unit.convert(expiryTime - timeSupplier.get(), TimeUnit.MILLISECONDS);
       }
    }
    private Map<String, VagrantNode> nodes = new ConcurrentHashMap<String, VagrantNode>();
    private DelayQueue<TerminatedNode> terminatedNodes = new DelayQueue<TerminatedNode>();
 
    private volatile long lastVacuumMs;
+   private Supplier<Long> timeSupplier;
 
-   public VagrantNodeRegistry() {
+   @Inject
+   VagrantNodeRegistry(@TimeStamp Supplier<Long> timeSupplier) {
+      this.timeSupplier = timeSupplier;
    }
+
 
    public VagrantNode get(String id) {
       vacuum();
@@ -82,12 +92,12 @@ public class VagrantNodeRegistry {
 
    protected void vacuum() {
       // No need to lock on lastVacuumMs - not critical if we miss/do double vacuuming.
-      if (System.currentTimeMillis() - lastVacuumMs > VACUUM_PERIOD_MS) {
+      if (timeSupplier.get() - lastVacuumMs > VACUUM_PERIOD_MS) {
          TerminatedNode terminated;
          while ((terminated = terminatedNodes.poll()) != null) {
             nodes.remove(terminated.node.id());
          }
-         lastVacuumMs = System.currentTimeMillis();
+         lastVacuumMs = timeSupplier.get();
       }
    }
 
@@ -96,7 +106,7 @@ public class VagrantNodeRegistry {
    }
 
    public void onTerminated(VagrantNode node) {
-      terminatedNodes.add(new TerminatedNode(node));
+      terminatedNodes.add(new TerminatedNode(node, timeSupplier));
    }
 
 }

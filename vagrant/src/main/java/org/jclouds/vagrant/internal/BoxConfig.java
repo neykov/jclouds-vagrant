@@ -30,12 +30,41 @@ import com.google.common.io.Files;
 
 import vagrant.api.domain.Box;
 
-public class BoxConfigParser {
+public class BoxConfig {
+   public static class Factory {
+      public BoxConfig newInstance(Image image) {
+         String provider = image.getUserMetadata().get("provider");
+         return new BoxConfig(getVagrantHome(), image.getName(), image.getVersion(), provider);
+      }
+
+      public BoxConfig newInstance(File vagrantHome, Image image) {
+         return this.newInstance(getVagrantHome(), image);
+      }
+
+      public BoxConfig newInstance(Box box) {
+         return this.newInstance(getVagrantHome(), box);
+      }
+
+      public BoxConfig newInstance(File vagrantHome, Box box) {
+         return new BoxConfig(vagrantHome, box.getName(), box.getVersion(), box.getProvider());
+      }
+
+      private File getVagrantHome() {
+         String home = System.getProperty(VagrantConstants.ENV_VAGRANT_HOME);
+         if (home != null) {
+            return new File(home);
+         } else {
+            return new File(VagrantConstants.ENV_VAGRANT_HOME_DEFAULT);
+         }
+      }
+
+   }
+
    private String config;
    private File providerPath;
 
-   private BoxConfigParser(String name, String version, String provider) {
-      File boxes = new File(getVagrantHome(), VagrantConstants.VAGRANT_BOXES_SUBFOLDER);
+   protected BoxConfig(File vagrantHome, String name, String version, String provider) {
+      File boxes = new File(vagrantHome, VagrantConstants.VAGRANT_BOXES_SUBFOLDER);
       File boxPath = new File(boxes, name.replace("/", VagrantConstants.ESCAPE_SLASH));
       File versionPath = new File(boxPath, version);
       File providerPath = new File(versionPath, provider);
@@ -80,24 +109,6 @@ public class BoxConfigParser {
       } else {
          return Optional.absent();
       }
-   }
-
-   private File getVagrantHome() {
-      String home = System.getProperty(VagrantConstants.ENV_VAGRANT_HOME);
-      if (home != null) {
-         return new File(home);
-      } else {
-         return new File(System.getProperty("user.home"), VagrantConstants.ENV_VAGRANT_HOME_DEFAULT);
-      }
-   }
-
-   public static BoxConfigParser newInstance(Image image) {
-      String provider = image.getUserMetadata().get("provider");
-      return new BoxConfigParser(image.getName(), image.getVersion(), provider);
-   }
-
-   public static BoxConfigParser newInstance(Box box) {
-      return new BoxConfigParser(box.getName(), box.getVersion(), box.getProvider());
    }
 
 }

@@ -28,6 +28,7 @@ import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.internal.ArbitraryCpuRamTemplateBuilderImpl;
 import org.jclouds.compute.domain.internal.TemplateBuilderImpl;
 import org.jclouds.compute.strategy.PopulateDefaultLoginCredentialsForImageStrategy;
+import org.jclouds.date.TimeStamp;
 import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
 import org.jclouds.vagrant.compute.VagrantComputeServiceAdapter;
@@ -42,6 +43,7 @@ import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.inject.Module;
+import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
@@ -62,7 +64,7 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       }).to(MachineStateToJcloudsStatus.class);
       bind(new TypeLiteral<Function<Box, Image>>() {
       }).to(BoxToImage.class);
-      bind(new TypeLiteral<Supplier<Map<String, Hardware>>>() {
+      bind(new TypeLiteral<Supplier<? extends Map<String, Hardware>>>() {
       }).to(VagrantHardwareSupplier.class);
       bind(new TypeLiteral<Function<Hardware, Hardware>>() {
       }).to(this.<Hardware>castIdentityFunction());
@@ -71,6 +73,17 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
       bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
       bind(TemplateBuilderImpl.class).to(ArbitraryCpuRamTemplateBuilderImpl.class);
       bind(CommandIOListener.class).to(VagrantWireLogger.class).in(Singleton.class);
+   }
+
+   @Provides
+   @TimeStamp
+   public Supplier<Long> timeSupplier() {
+      return new Supplier<Long>() {
+         @Override
+         public Long get() {
+            return System.currentTimeMillis();
+         }
+      };
    }
 
    @Override
