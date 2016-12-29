@@ -33,8 +33,9 @@ Local caching proxy
 ### Polipo
 
 Use `polipo` for caching proxy. On OS X install with
+
 ```
-sudo brew install polipo
+brew install polipo
 ```
 
 From [SO](http://superuser.com/questions/192696/how-can-i-make-tor-and-polipo-run-and-automatically-restart-using-launchd-on-m):
@@ -82,7 +83,7 @@ diskCacheRoot = "~/.polipo/cache/"
 
 * `sudo chown root:wheel /Library/LaunchDaemons/fr.jussieu.pps.polipo.plist`
 * `sudo chmod 755 /Library/LaunchDaemons/fr.jussieu.pps.polipo.plist`
-* `sudo launchctl -w load /Library/LaunchDaemons/fr.jussieu.pps.polipo.plist`
+* `sudo launchctl load -w /Library/LaunchDaemons/fr.jussieu.pps.polipo.plist`
 
 ### Vagrant
 
@@ -122,6 +123,12 @@ Testing
 
 ```
 mvn clean install -Plive
+```
+
+To clean up after the tests:
+
+```
+for f in `find ~/.jclouds/vagrant/tests -name Vagrantfile | xargs -n1 dirname`; do pushd $f; vagrant destroy --force; popd; rm -rf $f; done
 ```
 
 
