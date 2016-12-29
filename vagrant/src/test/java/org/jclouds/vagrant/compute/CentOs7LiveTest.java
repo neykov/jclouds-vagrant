@@ -26,8 +26,8 @@ public class CentOs7LiveTest extends VagrantComputeServiceAdapterLiveTest {
       return "centos/7";
    }
 
-   @Test
    @Override
+   @Test(enabled = true, dependsOnMethods = { "testCompareSizes" })
    public void testAScriptExecutionAfterBootWithBasicTemplate() throws Exception {
       // Fails on CentOS 7. Can't ssh back with user foo because SELinux not configured correctly.
       // "foo" is created out of the /home folder, /over/ridden is not white listed with the correct context.

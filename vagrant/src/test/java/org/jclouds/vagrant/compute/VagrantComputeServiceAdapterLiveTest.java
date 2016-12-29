@@ -62,7 +62,7 @@ public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeSe
    protected abstract String getImageId();
 
    @Override
-   @Test(enabled = false)
+   @Test(enabled = true)
    public void testCorrectAuthException() throws Exception {
       // Vagrant doesn't use credential info
    }
@@ -80,7 +80,7 @@ public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeSe
    }
 
    @Override
-   @Test
+   @Test(enabled = true, dependsOnMethods = "testGet")
    public void testOptionToNotBlock() throws Exception {
        // LoginCredentials are available only after the machine starts,
        // so can't return earlier.
