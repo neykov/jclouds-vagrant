@@ -62,6 +62,7 @@ public class VagrantNodeRegistryTest {
       VagrantNode node = VagrantNode.builder()
             .setPath(new File("/path/to/machine"))
             .setId("vagrant/node")
+            .setGroup("vagrant")
             .setName("node")
             .setImage(image)
             .setNetworks(networks)

@@ -71,7 +71,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
       NodeMetadataBuilder nodeMetadataBuilder = new NodeMetadataBuilder()
             .ids(node.id())
             .name(node.name())
-            .group(node.path().getName())
+            .group(node.group())
             .imageId(node.image().getId())
             .location(location)
             .hardware(getHardware(node))

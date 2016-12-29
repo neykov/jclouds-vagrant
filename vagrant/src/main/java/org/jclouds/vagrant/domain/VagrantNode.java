@@ -34,6 +34,8 @@ public abstract class VagrantNode {
 
    public abstract String id();
 
+   public abstract String group();
+
    public abstract String name();
 
    public abstract Image image();
@@ -50,6 +52,7 @@ public abstract class VagrantNode {
    public abstract static class Builder {
       public abstract Builder setPath(File path);
       public abstract Builder setId(String id);
+      public abstract Builder setGroup(String group);
       public abstract Builder setName(String name);
       public abstract Builder setImage(Image image);
       public abstract Builder setNetworks(Collection<String> networks);

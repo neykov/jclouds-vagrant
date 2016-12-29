@@ -33,7 +33,7 @@ import vagrant.api.domain.Box;
 public class BoxConfig {
    public static class Factory {
       public BoxConfig newInstance(Image image) {
-         String provider = image.getUserMetadata().get("provider");
+         String provider = image.getUserMetadata().get(VagrantConstants.USER_META_PROVIDER);
          return new BoxConfig(getVagrantHome(), image.getName(), image.getVersion(), provider);
       }
 

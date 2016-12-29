@@ -52,7 +52,7 @@ public class BoxToImage implements Function<Box, Image> {
             .status(Status.AVAILABLE)
             // Overriden by AddDefaultCredentialsToImage
             //.defaultCredentials()
-            .userMetadata(ImmutableMap.of("provider", input.getProvider()))
+            .userMetadata(ImmutableMap.of(VagrantConstants.USER_META_PROVIDER, input.getProvider()))
             .build();
    }
 

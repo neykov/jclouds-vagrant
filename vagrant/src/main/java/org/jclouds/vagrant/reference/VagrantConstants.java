@@ -26,6 +26,7 @@ public final class VagrantConstants {
    public static final String VAGRANTFILE = "Vagrantfile";
    public static final String DEFAULT_USERNAME = "vagrant";
    public static final String DEFAULT_PASSWORD = "vagrant";
+   public static final String USER_META_PROVIDER = "provider";
 
    public static final String ENV_VAGRANT_HOME = "VAGRANT_HOME";
    public static final String ENV_VAGRANT_HOME_DEFAULT = new File(System.getProperty("user.home"), ".vagrant.d").getAbsolutePath();

@@ -133,6 +133,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       VagrantNode node = VagrantNode.builder()
             .setPath(path)
             .setId(id)
+            .setGroup(group)
             .setName(name)
             .setImage(image)
             .setNetworks(getNetworks(output, getOsInterfacePattern(osFamily)))

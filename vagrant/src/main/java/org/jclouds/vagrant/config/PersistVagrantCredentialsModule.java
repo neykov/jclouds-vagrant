@@ -84,6 +84,8 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
          if (node == null) {
             throw new IllegalStateException("Updating node credentials failed because node " + id + " not found.");
          }
+         String provider = node.image().getUserMetadata().get(VagrantConstants.USER_META_PROVIDER);
+
          MachineConfig machineConfig = machineConfigFactory.newInstance(node);
          Map<String, Object> config = machineConfig.load();
 
@@ -94,7 +96,7 @@ public class PersistVagrantCredentialsModule extends AbstractModule {
          }
          if (credentials.getOptionalPrivateKey().isPresent()) {
             // Overwrite existing private key and dont't use config.ssh.private_key_path - doesn't work, is ignored.
-            File privateKeyFile = new File(node.path(), ".vagrant/machines/" + node.name() + "/virtualbox/private_key");
+            File privateKeyFile = new File(node.path(), ".vagrant/machines/" + node.name() + "/" + provider + "/private_key");
             try {
                VagrantUtils.write(privateKeyFile, credentials.getOptionalPrivateKey().get());
             } catch (IOException e) {

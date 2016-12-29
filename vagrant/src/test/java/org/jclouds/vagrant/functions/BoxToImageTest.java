@@ -69,6 +69,6 @@ public class BoxToImageTest {
       assertEquals(image.getOperatingSystem().getVersion(), box.getVersion());
       assertEquals(image.getOperatingSystem().getDescription(), box.getName());
       assertEquals(image.getStatus(), Status.AVAILABLE);
-      assertEquals(image.getUserMetadata(), ImmutableMap.of("provider", box.getProvider()));
+      assertEquals(image.getUserMetadata(), ImmutableMap.of(VagrantConstants.USER_META_PROVIDER, box.getProvider()));
    }
 }

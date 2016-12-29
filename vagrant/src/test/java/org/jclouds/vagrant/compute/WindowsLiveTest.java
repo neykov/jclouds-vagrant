@@ -38,6 +38,13 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 
+/**
+ * Building the image:
+ *   $ git clone https://github.com/boxcutter/windows.git boxcutter-windows
+ *   $ cd boxcutter-windows
+ *   $ make virtualbox/eval-win7x86-enterprise
+ *   $ vagrant box add boxcutter/eval-win7x86-enterprise box/virtualbox/eval-win7x86-enterprise-nocm-1.0.4.box
+ */
 @Test(groups = "live", singleThreaded = true, enabled = true, testName = "WindowsLiveTest")
 public class WindowsLiveTest extends BaseComputeServiceContextLiveTest {
 
