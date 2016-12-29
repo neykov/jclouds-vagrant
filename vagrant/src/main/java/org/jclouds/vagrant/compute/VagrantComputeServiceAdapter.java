@@ -50,6 +50,7 @@ import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
 import org.jclouds.vagrant.domain.VagrantNode;
+import org.jclouds.vagrant.functions.OutdatedBoxesFilter;
 import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
 import org.jclouds.vagrant.internal.VagrantOutputRecorder;
@@ -86,6 +87,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
    private final VagrantWireLogger wireLogger;
    private final MachineConfig.Factory machineConfigFactory;
+   private final OutdatedBoxesFilter outdatedBoxesFilter;
 
    @Inject
    VagrantComputeServiceAdapter(@Named(VagrantConstants.JCLOUDS_VAGRANT_HOME) String home,
@@ -93,12 +95,14 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          VagrantNodeRegistry nodeRegistry,
          VagrantWireLogger wireLogger,
          MachineConfig.Factory machineConfigFactory,
+         OutdatedBoxesFilter outdatedBoxesFilter,
          Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
       this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
       this.wireLogger = checkNotNull(wireLogger, "wireLogger");
       this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
+      this.outdatedBoxesFilter = checkNotNull(outdatedBoxesFilter, "outdatedBoxesFilter");
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.home.mkdirs();
    }
@@ -270,7 +274,8 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Override
    public Iterable<Box> listImages() {
-      return Vagrant.forPath(new File("."), wireLogger).box().list();
+      Collection<Box> allBoxes = Vagrant.forPath(new File("."), wireLogger).box().list();
+      return outdatedBoxesFilter.apply(allBoxes);
    }
 
    @Override
