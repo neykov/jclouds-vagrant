@@ -16,6 +16,8 @@
  */
 package org.jclouds.vagrant.config;
 
+import java.io.File;
+import java.util.Collection;
 import java.util.Map;
 
 import org.jclouds.compute.ComputeServiceAdapter;
@@ -24,18 +26,19 @@ import org.jclouds.compute.config.PersistNodeCredentialsModule;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.internal.ArbitraryCpuRamTemplateBuilderImpl;
 import org.jclouds.compute.domain.internal.TemplateBuilderImpl;
 import org.jclouds.compute.strategy.PopulateDefaultLoginCredentialsForImageStrategy;
 import org.jclouds.date.TimeStamp;
 import org.jclouds.domain.Location;
 import org.jclouds.functions.IdentityFunction;
+import org.jclouds.vagrant.api.VagrantApiFacade;
 import org.jclouds.vagrant.compute.VagrantComputeServiceAdapter;
 import org.jclouds.vagrant.domain.VagrantNode;
 import org.jclouds.vagrant.functions.BoxToImage;
-import org.jclouds.vagrant.functions.MachineStateToJcloudsStatus;
 import org.jclouds.vagrant.functions.MachineToNodeMetadata;
+import org.jclouds.vagrant.functions.OutdatedBoxesFilter;
+import org.jclouds.vagrant.internal.VagrantCliProvider;
 import org.jclouds.vagrant.internal.VagrantWireLogger;
 import org.jclouds.vagrant.strategy.VagrantDefaultImageCredentials;
 import org.jclouds.vagrant.suppliers.VagrantHardwareSupplier;
@@ -49,7 +52,6 @@ import com.google.inject.TypeLiteral;
 
 import vagrant.api.CommandIOListener;
 import vagrant.api.domain.Box;
-import vagrant.api.domain.MachineState;
 
 public class VagrantComputeServiceContextModule extends ComputeServiceAdapterContextModule<VagrantNode, Hardware, Box, Location> {
 
@@ -57,19 +59,21 @@ public class VagrantComputeServiceContextModule extends ComputeServiceAdapterCon
    protected void configure() {
       super.configure();
       bind(new TypeLiteral<ComputeServiceAdapter<VagrantNode, Hardware, Box, Location>>() {
-      }).to(VagrantComputeServiceAdapter.class);
+      }).to(new TypeLiteral<VagrantComputeServiceAdapter<Box>>() {});
       bind(new TypeLiteral<Function<VagrantNode, NodeMetadata>>() {
       }).to(MachineToNodeMetadata.class);
-      bind(new TypeLiteral<Function<MachineState, Status>>() {
-      }).to(MachineStateToJcloudsStatus.class);
       bind(new TypeLiteral<Function<Box, Image>>() {
       }).to(BoxToImage.class);
       bind(new TypeLiteral<Supplier<? extends Map<String, Hardware>>>() {
-      }).to(VagrantHardwareSupplier.class);
+      }).to(VagrantHardwareSupplier.class).in(Singleton.class);
       bind(new TypeLiteral<Function<Hardware, Hardware>>() {
       }).to(this.<Hardware>castIdentityFunction());
       bind(new TypeLiteral<Function<Location, Location>>() {
       }).to(this.<Location>castIdentityFunction());
+      bind(new TypeLiteral<Function<Collection<Box>, Collection<Box>>>() {
+      }).to(OutdatedBoxesFilter.class);
+      bind(new TypeLiteral<Function<File, VagrantApiFacade<Box>>>() {
+      }).to(VagrantCliProvider.class).in(Singleton.class);
       bind(PopulateDefaultLoginCredentialsForImageStrategy.class).to(VagrantDefaultImageCredentials.class);
       bind(TemplateBuilderImpl.class).to(ArbitraryCpuRamTemplateBuilderImpl.class);
       bind(CommandIOListener.class).to(VagrantWireLogger.class).in(Singleton.class);

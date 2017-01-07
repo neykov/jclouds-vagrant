@@ -26,7 +26,6 @@ import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.HardwareBuilder;
 import org.jclouds.compute.domain.Image;
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.NodeMetadataBuilder;
 import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.Processor;
@@ -44,22 +43,18 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 
-import vagrant.api.domain.MachineState;
-
 public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata> {
-   private final Function<MachineState, Status> toPortableNodeStatus;
    private final Location location;
    private final BoxConfig.Factory boxConfigFactory;
    private final MachineConfig.Factory machineConfigFactory;
    private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
 
    @Inject
-   MachineToNodeMetadata(Function<MachineState, Status> toPortableNodeStatus,
+   MachineToNodeMetadata(
          @Memoized Supplier<Set<? extends Location>> locations,
          BoxConfig.Factory boxConfigFactory,
          MachineConfig.Factory machineConfigFactory,
          Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
-      this.toPortableNodeStatus = checkNotNull(toPortableNodeStatus, "toPortableNodeStatus");
       this.location = Iterables.getOnlyElement(checkNotNull(locations, "locations").get());
       this.boxConfigFactory = checkNotNull(boxConfigFactory, "boxConfigFactory");
       this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
@@ -77,7 +72,7 @@ public class MachineToNodeMetadata implements Function<VagrantNode, NodeMetadata
             .hardware(getHardware(node))
             .operatingSystem(node.image().getOperatingSystem())
             .hostname(node.name())
-            .status(toPortableNodeStatus.apply(node.machineState()))
+            .status(node.machineState())
             .loginPort(getLoginPort(node.image()))
             .privateAddresses(node.networks())
             .publicAddresses(ImmutableList.<String> of())

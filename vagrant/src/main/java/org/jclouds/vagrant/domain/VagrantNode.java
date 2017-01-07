@@ -20,15 +20,14 @@ import java.io.File;
 import java.util.Collection;
 
 import org.jclouds.compute.domain.Image;
+import org.jclouds.compute.domain.NodeMetadata.Status;
 
 import com.google.auto.value.AutoValue;
-
-import vagrant.api.domain.MachineState;
 
 @AutoValue
 public abstract class VagrantNode {
 
-   private volatile MachineState machineState = MachineState.POWER_OFF;
+   private volatile Status machineState = Status.SUSPENDED;
 
    public abstract File path();
 
@@ -60,11 +59,11 @@ public abstract class VagrantNode {
       public abstract VagrantNode build();
    }
 
-   public MachineState machineState() {
+   public Status machineState() {
       return machineState;
    }
 
-   public void setMachineState(MachineState machineState) {
+   public void setMachineState(Status machineState) {
       this.machineState = machineState;
    }
 

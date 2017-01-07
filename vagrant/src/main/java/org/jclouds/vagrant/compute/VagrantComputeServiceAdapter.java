@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,6 +35,7 @@ import javax.inject.Named;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.Image;
+import org.jclouds.compute.domain.NodeMetadata.Status;
 import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.Processor;
 import org.jclouds.compute.domain.Template;
@@ -46,15 +46,12 @@ import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.domain.LoginCredentials;
-import org.jclouds.domain.LoginCredentials.Builder;
 import org.jclouds.location.suppliers.all.JustProvider;
 import org.jclouds.logging.Logger;
+import org.jclouds.vagrant.api.VagrantApiFacade;
 import org.jclouds.vagrant.domain.VagrantNode;
-import org.jclouds.vagrant.functions.OutdatedBoxesFilter;
 import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.internal.VagrantNodeRegistry;
-import org.jclouds.vagrant.internal.VagrantOutputRecorder;
-import org.jclouds.vagrant.internal.VagrantWireLogger;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.jclouds.vagrant.util.VagrantUtils;
 
@@ -66,15 +63,8 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.io.Files;
 
-import vagrant.Vagrant;
-import vagrant.api.VagrantApi;
-import vagrant.api.domain.Box;
-import vagrant.api.domain.MachineState;
-import vagrant.api.domain.SshConfig;
-
-public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<VagrantNode, Hardware, Box, Location> {
+public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<VagrantNode, Hardware, B, Location> {
    private static final Pattern PATTERN_IP_ADDR = Pattern.compile("inet ([0-9\\.]+)/(\\d+)");
    private static final Pattern PATTERN_IPCONFIG = Pattern.compile("IPv4 Address[ .]+: ([0-9\\.]+)");
 
@@ -84,25 +74,25 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private final File home;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
-   private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
-   private final VagrantWireLogger wireLogger;
    private final MachineConfig.Factory machineConfigFactory;
-   private final OutdatedBoxesFilter outdatedBoxesFilter;
+   private final Function<Collection<B>, Collection<B>> outdatedBoxesFilter;
+   private final Function<File, VagrantApiFacade<B>> cliProvider;
+   private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
 
    @Inject
    VagrantComputeServiceAdapter(@Named(VagrantConstants.JCLOUDS_VAGRANT_HOME) String home,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
-         VagrantWireLogger wireLogger,
          MachineConfig.Factory machineConfigFactory,
-         OutdatedBoxesFilter outdatedBoxesFilter,
+         Function<Collection<B>, Collection<B>> outdatedBoxesFilter,
+         Function<File, VagrantApiFacade<B>> cliProvider,
          Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
       this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
-      this.wireLogger = checkNotNull(wireLogger, "wireLogger");
       this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
       this.outdatedBoxesFilter = checkNotNull(outdatedBoxesFilter, "outdatedBoxesFilter");
+      this.cliProvider = checkNotNull(cliProvider, "cliProvider");
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.home.mkdirs();
    }
@@ -121,12 +111,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name, Image image) {
 
-      VagrantOutputRecorder outputRecorder = new VagrantOutputRecorder(wireLogger);
-      VagrantApi vagrant = Vagrant.forPath(path, outputRecorder);
-      vagrant.up(name);
-
-      String output = normalizeOutput(name, outputRecorder.getOutput());
-      outputRecorder.reset();
+      VagrantApiFacade<B> vagrant = cliProvider.apply(path);
+      String rawOutput = vagrant.up(name);
+      String output = normalizeOutput(name, rawOutput);
 
       OsFamily osFamily = image.getOperatingSystem().getFamily();
       String id = group + "/" + name;
@@ -139,22 +126,11 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
             .setNetworks(getNetworks(output, getOsInterfacePattern(osFamily)))
             .setHostname(getHostname(output))
             .build();
-      node.setMachineState(MachineState.RUNNING);
+      node.setMachineState(Status.RUNNING);
 
       LoginCredentials loginCredentials = null;
       if (osFamily != OsFamily.WINDOWS) {
-         SshConfig sshConfig = vagrant.sshConfig(name);
-         Builder loginCredentialsBuilder = LoginCredentials.builder()
-               .user(sshConfig.getUser());
-
-         try {
-            String privateKey = Files.toString(new File(sshConfig.getIdentityFile()), Charset.defaultCharset());
-            loginCredentialsBuilder.privateKey(privateKey);
-         } catch (IOException e) {
-            throw new IllegalStateException("Invalid private key " + sshConfig.getIdentityFile(), e);
-         }
-
-         loginCredentials = loginCredentialsBuilder.build();
+         loginCredentials = vagrant.sshConfig(name);
       }
 
       // PrioritizeCredentialsFromTemplate will overwrite loginCredentials with image credentials
@@ -274,20 +250,14 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    }
 
    @Override
-   public Iterable<Box> listImages() {
-      Collection<Box> allBoxes = Vagrant.forPath(new File("."), wireLogger).box().list();
+   public Iterable<B> listImages() {
+      Collection<B> allBoxes = cliProvider.apply(new File(".")).listBoxes();
       return outdatedBoxesFilter.apply(allBoxes);
    }
 
    @Override
-   public Box getImage(final String id) {
-      return Iterables.find(listImages(),
-            new Predicate<Box>() {
-         @Override
-         public boolean apply(Box input) {
-            return id.equals(input.getName());
-         }
-      }, null);
+   public B getImage(String id) {
+      return cliProvider.apply(new File(".")).getBox(id);
    }
 
    @Override
@@ -339,14 +309,14 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
-      VagrantApi vagrant = getMachine(node);
+      VagrantApiFacade<B> vagrant = getMachine(node);
       vagrant.up(name);
    }
 
    private void halt(String id) {
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
-      VagrantApi vagrant = getMachine(node);
+      VagrantApiFacade<B> vagrant = getMachine(node);
 
       try {
          vagrant.halt(name);
@@ -360,16 +330,16 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    public void resumeNode(String id) {
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
-      VagrantApi vagrant = getMachine(node);
+      VagrantApiFacade<B> vagrant = getMachine(node);
       vagrant.up(name);
-      node.setMachineState(MachineState.RUNNING);
+      node.setMachineState(Status.RUNNING);
    }
 
    @Override
    public void suspendNode(String id) {
       halt(id);
       VagrantNode node = nodeRegistry.get(id);
-      node.setMachineState(MachineState.SAVED);
+      node.setMachineState(Status.SUSPENDED);
    }
 
    @Override
@@ -379,7 +349,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
                @Override
                public Collection<VagrantNode> apply(File input) {
                   File machines = new File(input, VagrantConstants.MACHINES_CONFIG_SUBFOLDER);
-                  VagrantApi vagrant = Vagrant.forPath(input, wireLogger);
+                  VagrantApiFacade<B> vagrant = cliProvider.apply(input);
                   if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                      Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                      for (File machine : machines.listFiles()) {
@@ -409,9 +379,9 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       });
    }
 
-   private VagrantApi getMachine(VagrantNode node) {
+   private VagrantApiFacade<B> getMachine(VagrantNode node) {
       File nodePath = node.path();
-      return Vagrant.forPath(nodePath, wireLogger);
+      return cliProvider.apply(nodePath);
    }
 
    private String removeFromStart(String name, String group) {

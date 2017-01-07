@@ -14,27 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jclouds.vagrant.functions;
+package org.jclouds.vagrant.api;
 
-import org.jclouds.compute.domain.NodeMetadata.Status;
+import java.util.Collection;
 
-import vagrant.api.domain.MachineState;
+import org.jclouds.domain.LoginCredentials;
 
-import com.google.common.base.Function;
-
-public class MachineStateToJcloudsStatus implements Function<MachineState, Status> {
-
-   @Override
-   public Status apply(MachineState input) {
-      if (input == null) {
-         return null;
-      }
-      switch (input) {
-      case POWER_OFF: return Status.SUSPENDED;
-      case RUNNING: return Status.RUNNING;
-      case SAVED: return Status.SUSPENDED;
-      }
-      return Status.PENDING;
-   }
-
+public interface VagrantApiFacade<B> {
+   /**
+    * Start the named machine
+    * 
+    * @return the raw output of the configured provisioners
+    */
+   String up(String machineName);
+   void halt(String machineName);
+   void destroy(String machineName);
+   LoginCredentials sshConfig(String machineName);
+   Collection<B> listBoxes();
+   B getBox(String boxName);
+   void haltForced(String name);
+   boolean exists();
 }

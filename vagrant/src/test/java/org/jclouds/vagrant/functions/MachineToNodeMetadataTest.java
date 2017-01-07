@@ -40,7 +40,6 @@ import org.jclouds.vagrant.internal.MachineConfig;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -49,7 +48,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import vagrant.api.domain.Box;
-import vagrant.api.domain.MachineState;
 
 public class MachineToNodeMetadataTest {
    private abstract static class MachineToNodeMetadataFixture {
@@ -73,11 +71,7 @@ public class MachineToNodeMetadataTest {
                .setHostname("vagrant-node")
                .build();
 
-         node.setMachineState(MachineState.RUNNING);
-
-         @SuppressWarnings("unchecked")
-         Function<MachineState, Status> machineStateToJcloudsStatus = EasyMock.createMock(Function.class);
-         EasyMock.expect(machineStateToJcloudsStatus.apply(MachineState.RUNNING)).andReturn(Status.RUNNING);
+         node.setMachineState(Status.RUNNING);
 
          Location location = EasyMock.createMock(Location.class);
 
@@ -96,14 +90,13 @@ public class MachineToNodeMetadataTest {
          Hardware hardware = new HardwareBuilder().ids(getHardwareId()).ram(100).processor(new Processor(1.0, 1)).build();
          Supplier<? extends Map<String, Hardware>> hardwareSupplier = Suppliers.ofInstance(ImmutableMap.of(getHardwareId(), hardware));
 
-         EasyMock.replay(machineStateToJcloudsStatus, location, boxConfig, boxConfigFactory,
+         EasyMock.replay(location, boxConfig, boxConfigFactory,
                machineConfig, machineConfigFactory);
 
          @SuppressWarnings({ "unchecked", "rawtypes" })
          Supplier<Set<? extends Location>> locations = (Supplier<Set<? extends Location>>)(Supplier)Suppliers.ofInstance(ImmutableSet.of(location));
 
          MachineToNodeMetadata machineToNodeMetadata = new MachineToNodeMetadata(
-               machineStateToJcloudsStatus,
                locations,
                boxConfigFactory,
                machineConfigFactory,

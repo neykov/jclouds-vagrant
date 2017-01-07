@@ -42,14 +42,17 @@ public class VagrantOutputRecorderTest {
    @Test
    public void testOutputRecorder() {
       VagrantOutputRecorder outputRecorder = new VagrantOutputRecorder(nopIOListener);
-      assertEquals(outputRecorder.getOutput(), "");
+      outputRecorder.record();
+      assertEquals(outputRecorder.stopRecording(), "");
+      outputRecorder.record();
       outputRecorder.onInput("vagrant up");
-      assertEquals(outputRecorder.getOutput(), "");
+      assertEquals(outputRecorder.stopRecording(), "");
+      outputRecorder.record();
       outputRecorder.onOutput(OUT1);
       outputRecorder.onOutput(OUT2);
       outputRecorder.onOutput(OUT3 + OUT4);
-      assertEquals(outputRecorder.getOutput(), OUT1 + OUT2 + OUT3 + OUT4);
-      outputRecorder.reset();
-      assertEquals(outputRecorder.getOutput(), "");
+      assertEquals(outputRecorder.stopRecording(), OUT1 + OUT2 + OUT3 + OUT4);
+      outputRecorder.onOutput(OUT1);
+      assertEquals(outputRecorder.stopRecording(), "");
    }
 }

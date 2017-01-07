@@ -22,6 +22,7 @@ public class VagrantOutputRecorder implements CommandIOListener {
 
    private CommandIOListener next;
    private StringBuilder output = new StringBuilder();
+   private boolean isRecording;
 
    public VagrantOutputRecorder(CommandIOListener next) {
       this.next = next;
@@ -29,23 +30,30 @@ public class VagrantOutputRecorder implements CommandIOListener {
 
    @Override
    public void onInput(String input) {
-      next.onInput(input);
+      if (isRecording) {
+         next.onInput(input);
+      }
    }
 
    @Override
    public void onOutput(String output) {
-      next.onOutput(output);
-      if (output != null) {
-         this.output.append(output);
+      if (isRecording) {
+         next.onOutput(output);
+         if (output != null) {
+            this.output.append(output);
+         }
       }
    }
 
-   public String getOutput() {
-      return output.toString();
+   public void record() {
+      isRecording = true;
    }
 
-   public void reset() {
+   public String stopRecording() {
+      isRecording = false;
+      String out = output.toString();
       output.setLength(0);
+      return out;
    }
 
 }
