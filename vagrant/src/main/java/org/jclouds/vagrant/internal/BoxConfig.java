@@ -50,12 +50,8 @@ public class BoxConfig {
       }
 
       private File getVagrantHome() {
-         String home = System.getProperty(VagrantConstants.ENV_VAGRANT_HOME);
-         if (home != null) {
-            return new File(home);
-         } else {
-            return new File(VagrantConstants.ENV_VAGRANT_HOME_DEFAULT);
-         }
+         Optional<String> home = Optional.fromNullable(System.getenv(VagrantConstants.ENV_VAGRANT_HOME));
+         return new File(home.or(VagrantConstants.ENV_VAGRANT_HOME_DEFAULT));
       }
 
    }
