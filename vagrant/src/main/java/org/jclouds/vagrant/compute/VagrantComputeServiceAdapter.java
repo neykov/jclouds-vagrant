@@ -76,7 +76,7 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
    private final VagrantNodeRegistry nodeRegistry;
    private final MachineConfig.Factory machineConfigFactory;
    private final Function<Collection<B>, Collection<B>> outdatedBoxesFilter;
-   private final Function<File, VagrantApiFacade<B>> cliProvider;
+   private final VagrantApiFacade.Factory<B> cliFactory;
    private final Supplier<? extends Map<String, Hardware>> hardwareSupplier;
 
    @Inject
@@ -85,14 +85,14 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
          VagrantNodeRegistry nodeRegistry,
          MachineConfig.Factory machineConfigFactory,
          Function<Collection<B>, Collection<B>> outdatedBoxesFilter,
-         Function<File, VagrantApiFacade<B>> cliProvider,
+         VagrantApiFacade.Factory<B> cliFactory,
          Supplier<? extends Map<String, Hardware>> hardwareSupplier) {
       this.home = new File(checkNotNull(home, "home"));
       this.locationSupplier = checkNotNull(locationSupplier, "locationSupplier");
       this.nodeRegistry = checkNotNull(nodeRegistry, "nodeRegistry");
       this.machineConfigFactory = checkNotNull(machineConfigFactory, "machineConfigFactory");
       this.outdatedBoxesFilter = checkNotNull(outdatedBoxesFilter, "outdatedBoxesFilter");
-      this.cliProvider = checkNotNull(cliProvider, "cliProvider");
+      this.cliFactory = checkNotNull(cliFactory, "cliFactory");
       this.hardwareSupplier = checkNotNull(hardwareSupplier, "hardwareSupplier");
       this.home.mkdirs();
    }
@@ -111,7 +111,7 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
 
    private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name, Image image) {
 
-      VagrantApiFacade<B> vagrant = cliProvider.apply(path);
+      VagrantApiFacade<B> vagrant = cliFactory.create(path);
       String rawOutput = vagrant.up(name);
       String output = normalizeOutput(name, rawOutput);
 
@@ -251,13 +251,13 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
 
    @Override
    public Iterable<B> listImages() {
-      Collection<B> allBoxes = cliProvider.apply(new File(".")).listBoxes();
+      Collection<B> allBoxes = cliFactory.create(new File(".")).listBoxes();
       return outdatedBoxesFilter.apply(allBoxes);
    }
 
    @Override
    public B getImage(String id) {
-      return cliProvider.apply(new File(".")).getBox(id);
+      return cliFactory.create(new File(".")).getBox(id);
    }
 
    @Override
@@ -349,7 +349,7 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
                @Override
                public Collection<VagrantNode> apply(File input) {
                   File machines = new File(input, VagrantConstants.MACHINES_CONFIG_SUBFOLDER);
-                  VagrantApiFacade<B> vagrant = cliProvider.apply(input);
+                  VagrantApiFacade<B> vagrant = cliFactory.create(input);
                   if (input.isDirectory() && machines.exists() && vagrant.exists()) {
                      Collection<VagrantNode> nodes = new ArrayList<VagrantNode>();
                      for (File machine : machines.listFiles()) {
@@ -381,7 +381,7 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
 
    private VagrantApiFacade<B> getMachine(VagrantNode node) {
       File nodePath = node.path();
-      return cliProvider.apply(nodePath);
+      return cliFactory.create(nodePath);
    }
 
    private String removeFromStart(String name, String group) {

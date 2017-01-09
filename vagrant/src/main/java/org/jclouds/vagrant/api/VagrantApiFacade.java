@@ -16,11 +16,16 @@
  */
 package org.jclouds.vagrant.api;
 
+import java.io.File;
 import java.util.Collection;
 
 import org.jclouds.domain.LoginCredentials;
 
 public interface VagrantApiFacade<B> {
+   interface Factory<B> {
+      VagrantApiFacade<B> create(File path);
+   }
+
    /**
     * Start the named machine
     * 
