@@ -284,7 +284,7 @@ public class VagrantComputeServiceAdapter<B> implements ComputeServiceAdapter<Va
    @Override
    public void destroyNode(String id) {
       VagrantNode node = nodeRegistry.get(id);
-      node.setMachineState(null);
+      node.setMachineState(Status.TERMINATED);
       getMachine(node).destroy(node.name());
       nodeRegistry.onTerminated(node);
       deleteMachine(node);

@@ -27,7 +27,7 @@ import com.google.auto.value.AutoValue;
 @AutoValue
 public abstract class VagrantNode {
 
-   private volatile Status machineState = Status.SUSPENDED;
+   private volatile Status machineState = Status.PENDING;
 
    public abstract File path();
 
