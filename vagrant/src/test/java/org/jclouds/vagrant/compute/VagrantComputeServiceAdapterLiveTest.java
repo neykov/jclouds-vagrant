@@ -16,23 +16,18 @@
  */
 package org.jclouds.vagrant.compute;
 
-import java.io.File;
-import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.TemplateBuilder;
+import org.jclouds.compute.domain.OsFamily;
+import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.internal.BaseComputeServiceLiveTest;
 import org.jclouds.sshj.config.SshjSshClientModule;
-import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
 
-public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLiveTest {
+public class VagrantComputeServiceAdapterLiveTest extends BaseComputeServiceLiveTest {
 
    public VagrantComputeServiceAdapterLiveTest() {
       provider = "vagrant";
@@ -42,24 +37,6 @@ public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeSe
    protected Module getSshModule() {
       return new SshjSshClientModule();
    }
-
-   @Override
-   protected TemplateBuilder templateBuilder() {
-      return super.templateBuilder()
-         .imageId(getImageId());
-   }
-
-   @Override
-   protected Properties setupProperties() {
-      Properties overrides = super.setupProperties();
-      File testsHome = new File(VagrantConstants.JCLOUDS_VAGRANT_HOME_DEFAULT, "tests");
-      File imageHome = new File(testsHome, getImageId().replaceAll("/", "_"));
-      overrides.setProperty(VagrantConstants.JCLOUDS_VAGRANT_HOME, imageHome.getAbsolutePath());
-      Logger.getAnonymousLogger().log(Level.INFO, "Home for " + getImageId() + " at " + imageHome.getAbsolutePath());
-      return overrides;
-   }
-
-   protected abstract String getImageId();
 
    @Override
    @Test(enabled = true)
@@ -86,4 +63,23 @@ public abstract class VagrantComputeServiceAdapterLiveTest extends BaseComputeSe
        // so can't return earlier.
    }
 
+   @Override
+   @Test(enabled = true, dependsOnMethods = { "testCompareSizes" })
+   public void testAScriptExecutionAfterBootWithBasicTemplate() throws Exception {
+      // Fails on CentOS 7. Can't ssh back with user foo because SELinux not configured correctly.
+      // "foo" is created out of the /home folder, /over/ridden is not white listed with the correct context.
+      // Steps needed to configure SELinux before creating the user:
+      //
+      // semanage fcontext -a -e /home /over/ridden
+      // mkdir /over/ridden
+      // restorecon /over/ridden
+      // useradd -d /over/ridden/foo foo
+      //
+      // semanage is not available on a default install - needs "yum install policycoreutils-python"
+
+      Template template = buildTemplate(templateBuilder());
+      if (template.getImage().getOperatingSystem().getFamily() != OsFamily.CENTOS) {
+         super.testAScriptExecutionAfterBootWithBasicTemplate();
+      }
+   }
 }

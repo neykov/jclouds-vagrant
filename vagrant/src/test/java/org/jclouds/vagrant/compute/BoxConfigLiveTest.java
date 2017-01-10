@@ -16,30 +16,45 @@
  */
 package org.jclouds.vagrant.compute;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 import org.jclouds.compute.domain.Image;
+import org.jclouds.compute.internal.BaseComputeServiceContextLiveTest;
 import org.jclouds.vagrant.internal.BoxConfig;
 import org.jclouds.vagrant.reference.VagrantConstants;
 import org.testng.annotations.Test;
 
-@Test(groups = "live", singleThreaded = true, testName = "UbuntuTrustyLiveTest")
-public class UbuntuTrustyLiveTest extends VagrantComputeServiceAdapterLiveTest {
+import com.google.common.base.Optional;
 
-   @Override
-   protected String getImageId() {
-      return "ubuntu/trusty64";
+@Test(groups = "live", testName = "BoxConfigLiveTest")
+public class BoxConfigLiveTest extends BaseComputeServiceContextLiveTest {
+
+   public BoxConfigLiveTest() {
+      provider = "vagrant";
    }
 
-
    @Test
-   public void testBoxConfig() {
-      Image image = view.getComputeService().getImage(getImageId());
+   public void testDefaultCredentials() {
+      Image image = view.getComputeService().getImage("ubuntu/trusty64");
 
       BoxConfig.Factory boxConfigFactory = new BoxConfig.Factory();
       BoxConfig boxConfig = boxConfigFactory.newInstance(image);
 
       assertFalse(boxConfig.getStringKey(VagrantConstants.CONFIG_USERNAME).isPresent());
       assertFalse(boxConfig.getStringKey(VagrantConstants.CONFIG_PASSWORD).isPresent());
+   }
+
+   @Test
+   public void testCustomUsernameAndPassword() {
+      Image image = view.getComputeService().getImage("ubuntu/xenial64");
+
+      BoxConfig.Factory boxConfigFactory = new BoxConfig.Factory();
+      BoxConfig boxConfig = boxConfigFactory.newInstance(image);
+
+      assertEquals(boxConfig.getStringKey(VagrantConstants.CONFIG_USERNAME), Optional.of("ubuntu"));
+      // Password changes on each box update
+      assertTrue(boxConfig.getStringKey(VagrantConstants.CONFIG_PASSWORD).isPresent());
    }
 }
