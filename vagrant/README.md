@@ -4,28 +4,10 @@ Vagrant provider for jclouds
 Building
 --------
 
-  * `git clone https://github.com/neykov/jclouds-vagrant`
-  * `cd jclouds-vagrant/vagrant`
+  * `git clone https://github.com/jclouds/jclouds-labs`
+  * `cd jclouds-labs/vagrant`
   * `mvn clean install`
-  * Copy `target/vagrant-2.0.0-SNAPSHOT.jar` to jcloud's classpath
-
-Using in Apache Brooklyn
-------------------------
-
-Download a Vagrant box:
-```
-vagrant box add ubuntu/trustry64
-```
-
-In your `brooklyn.properties` configure the location and use it to deploy blueprints:
-```
-brooklyn.location.jclouds.vagrant.imageId=ubuntu/trusty64
-brooklyn.location.jclouds.vagrant.identity=dummy
-brooklyn.location.jclouds.vagrant.credential=dummy
-```
-
-`identity` and `credential` are required but not used.
-
+  * Copy `target/vagrant-2.0.0-SNAPSHOT.jar` to your classpath
 
 Local caching proxy
 -------------------
@@ -89,6 +71,7 @@ diskCacheRoot = "~/.polipo/cache/"
 
 * `vagrant plugin install vagrant-proxyconf`
 * add to `~/.vagrant.d/Vagrantfile`:
+
 ```
 Vagrant.configure("2") do |config|
   if Vagrant.has_plugin?("vagrant-proxyconf")
@@ -100,23 +83,7 @@ end
 ```
 
 Where `10.0.2.2` is the IP of your host as seen from the vagrant machines (in this case the NAT interface).
-
-Cleaning up
------------
-
-Brooklyn leaves running machines if not stopped correctly so they need to be destroyed manually periodically.
-All machines live in `~/.jagrant/machines`. Create `cleanup.sh` in the folder and execute it to destroy machines created by the provider:
-
-```
-for node in broo*; do
-  [ ! -d "$node" ] && continue # if no matching folder will pass the non-expanded arg
-  echo Destroying $node
-  pushd $node > /dev/null
-  vagrant destroy --force
-  popd > /dev/null
-  rm -rf $node
-done
-```
+Optionally could add all your private network IPs from your Vagrant subnet to `no_proxy` to skip the proxy for inter-VM communications.
 
 Testing
 -----------
@@ -125,7 +92,23 @@ Testing
 mvn clean install -Plive
 ```
 
-To clean up after the tests:
+Cleaning up
+-----------
+
+Sometimes users (or tests) do not stop correctly the machines so they need to be destroyed manually periodically.
+All machines live in `~/.jclouds/vagrant`. Create `cleanup.sh` in the folder and execute it to destroy machines created by the provider:
+
+```
+for node in `find ~/.jclouds/vagrant -name Vagrantfile | xargs -n1 dirname`; do
+  pushd $node > /dev/null
+  echo Destroying $node
+  vagrant destroy --force
+  popd> /dev/null
+  rm -rf $machine
+done
+```
+
+Same as a one-liner
 
 ```
 for f in `find ~/.jclouds/vagrant/tests -name Vagrantfile | xargs -n1 dirname`; do pushd $f; vagrant destroy --force; popd; rm -rf $f; done
