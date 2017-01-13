@@ -17,6 +17,7 @@
 package org.jclouds.vagrant.compute;
 
 import static org.jclouds.compute.domain.OsFamily.UBUNTU;
+import static org.jclouds.compute.domain.OsFamily.CENTOS;
 import static org.jclouds.compute.util.ComputeServiceUtils.getCores;
 import static org.testng.Assert.assertEquals;
 
@@ -45,7 +46,12 @@ public class VagrantTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTest 
    @Override
    public void testDefaultTemplateBuilder() throws IOException {
       Template defaultTemplate = view.getComputeService().templateBuilder().build();
-      assertEquals(defaultTemplate.getImage().getOperatingSystem().getFamily(), UBUNTU);
+      String imageId = defaultTemplate.getImage().getId();
+      if (imageId.startsWith("ubuntu")) {
+         assertEquals(defaultTemplate.getImage().getOperatingSystem().getFamily(), UBUNTU);
+      } else if(imageId.startsWith("centos")) {
+         assertEquals(defaultTemplate.getImage().getOperatingSystem().getFamily(), CENTOS);
+      }
       assertEquals(defaultTemplate.getImage().getOperatingSystem().is64Bit(), true);
       assertEquals(defaultTemplate.getHardware().getName(), "micro");
       assertEquals(getCores(defaultTemplate.getHardware()), 1.0d);
