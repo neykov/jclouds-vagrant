@@ -17,24 +17,33 @@
 package org.jclouds.vagrant.internal;
 
 import java.util.Collection;
+import java.util.Map;
+
+import javax.inject.Named;
 
 import org.jclouds.compute.domain.Image;
 import org.jclouds.vagrant.api.VagrantBoxApiFacade;
+import org.jclouds.vagrant.reference.VagrantConstants;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
-import com.google.common.collect.Collections2;
+import com.google.common.collect.FluentIterable;
 import com.google.inject.Inject;
 
 public class ImageSupplier<B> implements Supplier<Collection<Image>>, Function<String, Image> {
+   private final String provider;
    private final Function<Collection<B>, Collection<B>> outdatedBoxesFilter;
    private final VagrantBoxApiFacade.Factory<B> cliFactory;
    private final Function<B, Image> boxToImage;
 
    @Inject
-   ImageSupplier(Function<Collection<B>, Collection<B>> outdatedBoxesFilter,
+   ImageSupplier(
+         @Named(VagrantConstants.JCLOUDS_VAGRANT_PROVIDER) String provider,
+         Function<Collection<B>, Collection<B>> outdatedBoxesFilter,
          VagrantBoxApiFacade.Factory<B> cliFactory,
          Function<B, Image> boxToImage) {
+      this.provider = provider.isEmpty() ? null : provider;
       this.outdatedBoxesFilter = outdatedBoxesFilter;
       this.cliFactory = cliFactory;
       this.boxToImage = boxToImage;
@@ -43,7 +52,19 @@ public class ImageSupplier<B> implements Supplier<Collection<Image>>, Function<S
    @Override
    public Collection<Image> get() {
       Collection<B> boxes = outdatedBoxesFilter.apply(cliFactory.create().listBoxes());
-      return Collections2.transform(boxes, boxToImage);
+      return FluentIterable.from(boxes)
+         .transform(boxToImage)
+         .filter(new Predicate<Image>() {
+            @Override
+            public boolean apply(Image input) {
+               if (provider == null) return true;
+
+               Map<String, String> userMeta = input.getUserMetadata();
+               if (userMeta == null) return false;
+
+               return provider.equals(userMeta.get(VagrantConstants.USER_META_PROVIDER));
+            }
+         }).toList();
    }
 
    @Override

@@ -63,6 +63,7 @@ public class VagrantApiMetadata extends BaseApiMetadata {
       private Properties defaultProperties() {
          Properties defaultProperties = BaseApiMetadata.defaultProperties();
          defaultProperties.setProperty(VagrantConstants.JCLOUDS_VAGRANT_HOME, VagrantConstants.JCLOUDS_VAGRANT_HOME_DEFAULT);
+         defaultProperties.setProperty(VagrantConstants.JCLOUDS_VAGRANT_PROVIDER, "");
          defaultProperties.put(ComputeServiceProperties.TEMPLATE, "osFamily=UBUNTU");
          return defaultProperties;
       }

@@ -68,6 +68,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    protected Logger logger = Logger.NULL;
 
    private final File home;
+   private final String provider;
    private final JustProvider locationSupplier;
    private final VagrantNodeRegistry nodeRegistry;
    private final MachineConfig.Factory machineConfigFactory;
@@ -78,6 +79,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
 
    @Inject
    VagrantComputeServiceAdapter(@Named(VagrantConstants.JCLOUDS_VAGRANT_HOME) String home,
+         @Named(VagrantConstants.JCLOUDS_VAGRANT_PROVIDER) String provider,
          JustProvider locationSupplier,
          VagrantNodeRegistry nodeRegistry,
          MachineConfig.Factory machineConfigFactory,
@@ -86,6 +88,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
          Supplier<Collection<Image>> imageListSupplier,
          Function<String, Image> imageIdToImage) {
       this.home = new File(home);
+      this.provider = provider.isEmpty() ? null : provider;
       this.locationSupplier = locationSupplier;
       this.nodeRegistry = nodeRegistry;
       this.machineConfigFactory = machineConfigFactory;
@@ -112,7 +115,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
    private NodeAndInitialCredentials<VagrantNode> startMachine(File path, String group, String name, Image image, Hardware hardware) {
 
       VagrantApiFacade vagrant = cliFactory.create(path);
-      String rawOutput = vagrant.up(name);
+      String rawOutput = vagrant.up(name, provider);
       String output = normalizeOutput(name, rawOutput);
 
       OsFamily osFamily = image.getOperatingSystem().getFamily();
@@ -310,7 +313,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
       VagrantApiFacade vagrant = getMachine(node);
-      vagrant.up(name);
+      vagrant.up(name, provider);
       node.setMachineState(Status.RUNNING);
    }
 
@@ -333,7 +336,7 @@ public class VagrantComputeServiceAdapter implements ComputeServiceAdapter<Vagra
       VagrantNode node = nodeRegistry.get(id);
       String name = node.name();
       VagrantApiFacade vagrant = getMachine(node);
-      vagrant.up(name);
+      vagrant.up(name, provider);
       node.setMachineState(Status.RUNNING);
    }
 

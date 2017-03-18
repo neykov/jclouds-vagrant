@@ -21,6 +21,7 @@ import java.io.File;
 public final class VagrantConstants {
    private VagrantConstants() {}
 
+   public static final String JCLOUDS_VAGRANT_PROVIDER = "vagrant.provider";
    public static final String JCLOUDS_VAGRANT_HOME = "vagrant.home";
    public static final String JCLOUDS_VAGRANT_HOME_DEFAULT = new File(System.getProperty("user.home"), ".jclouds/vagrant").getAbsolutePath();
    public static final String VAGRANTFILE = "Vagrantfile";

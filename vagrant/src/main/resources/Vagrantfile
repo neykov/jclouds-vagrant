@@ -18,6 +18,25 @@ require 'yaml'
 # Because of linked_clone. 1.9+ recommended for Ubuntu Xenial
 Vagrant.require_version ">= 1.8"
 
+module CustomProviders
+  @@providers = []
+  def register(&fn)
+    @@providers << fn
+  end
+  def configure(config, machine_config)
+    @@providers.each do |provider|
+      provider.call(config, machine_config)
+    end
+  end
+
+  module_function :register
+  module_function :configure
+end
+
+Dir[Dir.home() + '/.jclouds/vagrant/providers/*.rb'].each do |file|
+  require File.dirname(file) + "/" + File.basename(file, '.rb')
+end
+
 Vagrant.configure(2) do |config|
   Dir.glob('machines/*.yaml') do |machine_file|
     machine_config = YAML.load_file(machine_file)
@@ -75,6 +94,8 @@ Vagrant.configure(2) do |config|
           v.customize ["modifyvm", :id, "--nictype2", "virtio"]
         end
       end
+
+      CustomProviders.configure(config, machine_config)
     end
   end
 end

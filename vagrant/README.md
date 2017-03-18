@@ -92,6 +92,32 @@ Testing
 mvn clean install -Plive
 ```
 
+Vagrant providers
+-----------
+
+jclouds supports the virtualbox provider out of the box. To use additional providers users need to let jclouds know
+how to configure them. For example how to turn configuration like number of cpus or amount of memory to the provider
+specific configuration. Additional configuration might be needed as well. This is not required, but not providing it
+will lead to VMs which ignore configuration passed in from jclouds.
+
+To let jclouds configure additional providers create a Ruby file in ~/.jclouds/vagrant/providers. In the file
+register a block to do the configuration, by calling into `CustomProviders.register`. The block will be passed
+two arguments - `config` which is the Vagrant provided machine config and `machine_config` which is the configuration
+coming from jclouds. Here's an example file for `libvirt`.
+
+```
+CustomProviders.register do |config, machine_config|
+  config.vm.provider "libvirt" do |v|
+    v.memory = machine_config["memory"] if machine_config.key?("memory")
+    v.cpus = machine_config["cpus"] if machine_config.key?("cpus")
+  end
+end
+```
+
+By default jclouds doesn't enforce any provider and will let `Vagrant` choose which one to use, depending
+on the available providers and selected image. To use a specific provider use the jclouds config property
+`vagrant.provider`.
+
 Cleaning up
 -----------
 
